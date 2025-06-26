@@ -12,7 +12,12 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED OFF)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Diretórios principais
+if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/STM32CubeL4")
+  message(FATAL_ERROR "Submodule STM32CubeL4 did not exist. Please run:
+                      git submodule update --init --recursive")
+endif()
+
+# main directories
 set(SRC_DIR ${CMAKE_SOURCE_DIR}/src/app)
 set(HAL_DIR ${CMAKE_SOURCE_DIR}/third_party/STM32CubeL4/Drivers/STM32L4xx_HAL_Driver)
 set(CMSIS_DIR ${CMAKE_SOURCE_DIR}/third_party/STM32CubeL4/Drivers/CMSIS)
@@ -33,7 +38,7 @@ set(HAL_INCLUDES
 )
 
 
-# Flags comuns para compilação e link
+# common flags for compilation and linking
 set(COMMON_FLAGS
   -mcpu=cortex-m4
   -mthumb
@@ -41,14 +46,14 @@ set(COMMON_FLAGS
   -mfloat-abi=hard
 )
 
-# Incluir subdiretório para app (src)
+# add subdirectory for application sources
 add_subdirectory(src)
 
-# Incluir bibliotecas de sources (HAL e CMSIS)
+# add source libraries (HAL e CMSIS)
 include(cmake/hal_sources.cmake)
 include(cmake/cmsis_headers.cmake)
 
-# Arquivos importantes
+# important files for startup and system initialization
 set(STARTUP_FILE ${STARTUP_DIR}/Src/startup_stm32l432kcux.s)
 set(SYSTEM_FILE ${STARTUP_DIR}/Src/system_stm32l4xx.c)
 set(SYSCALL_FILES
@@ -56,7 +61,7 @@ set(SYSCALL_FILES
   ${STARTUP_DIR}/Src/sysmem.c
 )
 
-# Executável principal
+# main executable target
 add_executable(${PROJECT_NAME}
   $<TARGET_OBJECTS:app_sources>
   $<TARGET_OBJECTS:hal_sources>
@@ -65,13 +70,13 @@ add_executable(${PROJECT_NAME}
   ${SYSCALL_FILES}
 )
 
-# Definições de compilação
+# compilation definitions
 target_compile_definitions(${PROJECT_NAME} PRIVATE
   STM32L432xx
   USE_HAL_DRIVER
 )
 
-# Opções de compilação
+# compilation options
 target_compile_options(${PROJECT_NAME} PRIVATE
   ${COMMON_FLAGS}
   -Wall
@@ -80,7 +85,7 @@ target_compile_options(${PROJECT_NAME} PRIVATE
   -fdata-sections
 )
 
-# Opções do linker
+# linker options
 target_link_options(${PROJECT_NAME} PRIVATE
   ${COMMON_FLAGS}
   -T${LINKER_SCRIPT}
@@ -88,7 +93,7 @@ target_link_options(${PROJECT_NAME} PRIVATE
   -Wl,-Map=${CMAKE_BINARY_DIR}/firmware.map
 )
 
-# Includes para compilação
+# compilation includes
 target_include_directories(${PROJECT_NAME} PRIVATE
   ${SRC_DIR}
   ${HAL_DIR}/Inc
@@ -97,13 +102,13 @@ target_include_directories(${PROJECT_NAME} PRIVATE
   ${STARTUP_DIR}/Inc
 )
 
-# Linka a interface de headers CMSIS
+# links CMSIS headers
 target_link_libraries(${PROJECT_NAME} PRIVATE cmsis_headers)
 
-# Ajusta linguagem do linker para C
+# adjust linker language to C
 set_target_properties(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE C)
 
-# Pós-build: gera arquivos bin e hex
+# Pos-build: create bin and hex files
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
   COMMAND ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:${PROJECT_NAME}> firmware.bin
   COMMAND ${CMAKE_OBJCOPY} -O ihex $<TARGET_FILE:${PROJECT_NAME}> firmware.hex
