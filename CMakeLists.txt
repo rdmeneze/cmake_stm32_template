@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-
+set(CMAKE_VERBOSE_MAKEFILE ON)
 # Define o nome do projeto e linguagens usadas
 project(stm32l432_firmware C CXX ASM)
 
@@ -21,16 +21,35 @@ find_package(Git REQUIRED)
 
 message(STATUS "Using Git executable: ${GIT_EXECUTABLE}")
 message(STATUS "Using CMake version: ${CMAKE_VERSION}")
+message(STATUS "Current working dir for Git: ${CMAKE_SOURCE_DIR}")
+file(GLOB GIT_DIR_CONTENTS ${CMAKE_SOURCE_DIR}/.git)
+message(STATUS "Git dir contents: ${GIT_DIR_CONTENTS}")
+
 execute_process(
-        COMMAND ${GIT_EXECUTABLE} describe --tags  --match="v*"
+        COMMAND ${GIT_EXECUTABLE} tag --points-at HEAD
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        RESULT_VARIABLE GIT_RESULT
-        OUTPUT_VARIABLE APP_VERSION
-        ERROR_VARIABLE GIT_ERROR
+        RESULT_VARIABLE TAG_RESULT
+        OUTPUT_VARIABLE TAG_NAME
+        ERROR_VARIABLE TAG_ERROR
         OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
+if(NOT TAG_NAME)
+  execute_process(
+          COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
+          WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+          OUTPUT_VARIABLE TAG_NAME
+          OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+endif()
+
+set(APP_VERSION "${TAG_NAME}")
+set(GIT_RESULT "${TAG_RESULT}")
+set(GIT_ERROR "${TAG_ERROR}")
+
 message(STATUS "Git describe output: ${APP_VERSION}")
+message(STATUS "Git describe result: ${GIT_RESULT}")
+message(STATUS "Git describe error: ${GIT_ERROR}")
 
 if (NOT APP_VERSION)
   set(APP_VERSION "v0.0.0-unknown")
@@ -60,12 +79,14 @@ message(STATUS "HAL_DIR = ${HAL_DIR}")
 message(STATUS "CMSIS_DIR = ${CMSIS_DIR}")
 message(STATUS "STARTUP_DIR = ${STARTUP_DIR}")
 message(STATUS "LINKER_SCRIPT = ${LINKER_SCRIPT}")
+message(STATUS "CMAKE_SOURCE_DIR = ${CMAKE_SOURCE_DIR}")
 
 set(HAL_INCLUDES
         ${CMAKE_SOURCE_DIR}/third_party/STM32CubeL4/Drivers/STM32L4xx_HAL_Driver/Inc
         ${STARTUP_DIR}/Inc
         ${CMAKE_SOURCE_DIR}/third_party/STM32CubeL4/Drivers/CMSIS/Device/ST/STM32L4xx/Include
         ${CMAKE_SOURCE_DIR}/third_party/STM32CubeL4/Drivers/CMSIS/Include
+        ${CMAKE_BINARY_DIR}
 )
 
 # common flags for compilation and linking
@@ -106,7 +127,6 @@ add_executable(${PROJECT_NAME}
 
 
 add_dependencies(${PROJECT_NAME} generate_version_header)
-
 
 # compilation definitions
 target_compile_definitions(${PROJECT_NAME} PRIVATE
