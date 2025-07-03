@@ -25,27 +25,28 @@ message(STATUS "Current working dir for Git: ${CMAKE_SOURCE_DIR}")
 file(GLOB GIT_DIR_CONTENTS ${CMAKE_SOURCE_DIR}/.git)
 message(STATUS "Git dir contents: ${GIT_DIR_CONTENTS}")
 
+# Tenta usar git describe com tags começando com "v"
 execute_process(
-        COMMAND ${GIT_EXECUTABLE} tag --points-at HEAD
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        RESULT_VARIABLE TAG_RESULT
-        OUTPUT_VARIABLE TAG_NAME
-        ERROR_VARIABLE TAG_ERROR
-        OUTPUT_STRIP_TRAILING_WHITESPACE
+    COMMAND ${GIT_EXECUTABLE} describe --tags --match "v*"
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    RESULT_VARIABLE GIT_RESULT
+    OUTPUT_VARIABLE APP_VERSION
+    ERROR_VARIABLE GIT_ERROR
+    OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
-if(NOT TAG_NAME)
-  execute_process(
-          COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
-          WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-          OUTPUT_VARIABLE TAG_NAME
-          OUTPUT_STRIP_TRAILING_WHITESPACE
-  )
+# Fallback: tenta pegar o hash curto se não achou uma tag válida
+if(NOT APP_VERSION OR GIT_RESULT)
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE APP_VERSION
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    set(APP_VERSION "v0.0.0-${APP_VERSION}")
 endif()
 
-set(APP_VERSION "${TAG_NAME}")
-set(GIT_RESULT "${TAG_RESULT}")
-set(GIT_ERROR "${TAG_ERROR}")
+message(STATUS "App version set to: ${APP_VERSION}")
 
 message(STATUS "Git describe output: ${APP_VERSION}")
 message(STATUS "Git describe result: ${GIT_RESULT}")
