@@ -73,6 +73,7 @@ set(SRC_DIR ${CMAKE_SOURCE_DIR}/src/app)
 set(HAL_DIR ${CMAKE_SOURCE_DIR}/third_party/STM32CubeL4/Drivers/STM32L4xx_HAL_Driver)
 set(CMSIS_DIR ${CMAKE_SOURCE_DIR}/third_party/STM32CubeL4/Drivers/CMSIS)
 set(STARTUP_DIR ${CMAKE_SOURCE_DIR}/startup)
+set(FREERTOS_DIR ${CMAKE_SOURCE_DIR}/third_party/STM32CubeL4/Middlewares/Third_Party/FreeRTOS/Source)
 set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/linker/STM32L432KCUX_FLASH.ld)
 
 message(STATUS "SRC_DIR = ${SRC_DIR}")
@@ -104,6 +105,7 @@ add_subdirectory(src)
 # add source libraries (HAL e CMSIS)
 include(cmake/hal_sources.cmake)
 include(cmake/cmsis_headers.cmake)
+include(cmake/freertos_sources.cmake)
 
 # important files for startup and system initialization
 set(STARTUP_FILE
@@ -121,6 +123,7 @@ set(SYSCALL_FILES
 add_executable(${PROJECT_NAME}
         $<TARGET_OBJECTS:app_sources>
         $<TARGET_OBJECTS:hal_sources>
+        $<TARGET_OBJECTS:freertos_sources>
         ${SYSTEM_FILE}
         ${STARTUP_FILE}
         ${SYSCALL_FILES}
