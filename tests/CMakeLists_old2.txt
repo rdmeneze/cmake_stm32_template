@@ -1,0 +1,28 @@
+cmake_minimum_required(VERSION 3.21)
+
+# Simple test configuration - only build when not cross-compiling
+if(NOT CMAKE_CROSSCOMPILING)
+    message(STATUS "Building unit tests...")
+    
+    # Include Google Test
+    include(../cmake/googletest.cmake)
+    
+    # Create test executable with just the smoke test
+    add_executable(unit_tests 
+        unit/test_smoke.cpp
+    )
+    
+    target_link_libraries(unit_tests
+        gtest_main
+        gmock_main
+    )
+    
+    # Register tests with CTest
+    include(GoogleTest)
+    gtest_discover_tests(unit_tests)
+    
+    message(STATUS "Unit tests configured successfully")
+    
+else()
+    message(STATUS "Cross-compiling detected - skipping test build")
+endif()
