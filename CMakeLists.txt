@@ -102,6 +102,11 @@ set(COMMON_FLAGS
 # add subdirectory for application sources
 add_subdirectory(src)
 
+# add subdirectory for tests (only when not cross-compiling)
+if(NOT CMAKE_CROSSCOMPILING)
+    add_subdirectory(tests)
+endif()
+
 # add source libraries (HAL e CMSIS)
 include(cmake/hal_sources.cmake)
 include(cmake/cmsis_headers.cmake)

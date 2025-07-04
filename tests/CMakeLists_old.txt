@@ -1,0 +1,67 @@
+cmake_minimum_required(VERSION 3.21)
+
+# Only build tests when not cross-compiling
+if(NOT CMAKE_CROSSCOMPILING)
+    message(STATUS "Building unit tests...")
+    
+    # Include Google Test
+    include(../cmake/googletest.cmake)
+    
+    # Test directories
+    set(TEST_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+    set(PROJECT_SRC_DIR ${CMAKE_SOURCE_DIR}/src/app)
+    
+    # For now, we'll create a minimal testable library with just stub functions
+    # Later you can add specific source files you want to test
+    add_library(app_testable INTERFACE)
+    
+    target_include_directories(app_testable INTERFACE
+        ${PROJECT_SRC_DIR}
+        ${CMAKE_SOURCE_DIR}/third_party/STM32CubeL4/Drivers/STM32L4xx_HAL_Driver/Inc
+        ${CMAKE_SOURCE_DIR}/startup/Inc
+        ${CMAKE_SOURCE_DIR}/third_party/STM32CubeL4/Drivers/CMSIS/Device/ST/STM32L4xx/Include
+        ${CMAKE_SOURCE_DIR}/third_party/STM32CubeL4/Drivers/CMSIS/Include
+        ${CMAKE_SOURCE_DIR}/third_party/STM32CubeL4/Middlewares/Third_Party/FreeRTOS/Source/include
+        ${CMAKE_SOURCE_DIR}/third_party/STM32CubeL4/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F
+        ${CMAKE_BINARY_DIR}
+        mocks
+    )
+    
+    target_compile_definitions(app_testable INTERFACE
+        STM32L432xx
+        USE_HAL_DRIVER
+        UNIT_TESTING  # Flag to indicate we're in test mode
+    )
+    
+    # Test files
+    file(GLOB_RECURSE TEST_SOURCES 
+        unit/*.cpp
+        mocks/*.cpp
+        fixtures/*.cpp
+    )
+    
+    # Create test executable
+    add_executable(unit_tests ${TEST_SOURCES})
+    
+    target_link_libraries(unit_tests
+        gtest_main
+        gmock_main
+        app_testable
+    )
+    
+    target_include_directories(unit_tests PRIVATE
+        ${TEST_SRC_DIR}
+        ${PROJECT_SRC_DIR}
+        mocks
+        fixtures
+    )
+    
+    # Register tests with CTest
+    include(GoogleTest)
+    gtest_discover_tests(unit_tests)
+    
+    message(STATUS "Unit tests configured successfully")
+    
+else()
+    message(STATUS "Cross-compiling detected - skipping test build")
+endif()
