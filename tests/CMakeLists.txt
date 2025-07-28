@@ -31,7 +31,13 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
     add_executable(unit_tests
         unit/test_smoke.cpp
         unit/test_led_controller.cpp
+        unit/test_hal_mocking.cpp
+        unit/test_real_led_controller.cpp
         fixtures/led_controller.cpp
+        fixtures/real_led_controller.cpp
+        fixtures/stm32l4xx_hal.cpp
+        mocks/mock_hal.cpp
+        mocks/mock_freertos.cpp
     )
 
     target_link_libraries(unit_tests
@@ -45,6 +51,7 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 
     target_include_directories(unit_tests PRIVATE
         fixtures
+        mocks
     )
 
     # Register tests with CTest
