@@ -181,3 +181,13 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:${PROJECT_NAME}> firmware.bin
         COMMAND ${CMAKE_OBJCOPY} -O ihex $<TARGET_FILE:${PROJECT_NAME}> firmware.hex
 )
+
+# Opção para habilitar testes (desabilitado por padrão para compilação de firmware)
+option(ENABLE_TESTING "Enable unit testing" OFF)
+
+if(ENABLE_TESTING)
+    enable_testing()
+    message(STATUS "Unit testing enabled")
+    # Note: Os testes estão configurados em tests/CMakeLists.txt como projeto standalone
+    # Para executar testes, use: cd tests && cmake -B build -S . && cd build && make && ./unit_tests
+endif()

@@ -42,7 +42,7 @@ protected:
         // Common FreeRTOS expectations
         EXPECT_CALL(*mock_freertos, vTaskStartScheduler())
             .WillRepeatedly(::testing::Return());
-            
+
         EXPECT_CALL(*mock_freertos, xTaskGetTickCount())
             .WillRepeatedly(::testing::Return(0));
     }

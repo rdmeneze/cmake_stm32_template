@@ -8,6 +8,9 @@
 #include "task.h"
 #include "portmacro.h"
 
+/* Include the port layer specific header for ARM_CM4F */
+extern void xPortSysTickHandler(void);
+
 /* Private variables ---------------------------------------------------------*/
 extern __IO uint32_t uwTick;
 extern HAL_TickFreqTypeDef uwTickFreq;
