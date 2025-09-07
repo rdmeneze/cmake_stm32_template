@@ -91,6 +91,38 @@
             "options": {
                 "cwd": "${workspaceFolder}"
             }
+        },
+        {
+            "label": "Flash Firmware to STM32",
+            "type": "shell",
+            "command": "./flash_firmware.sh",
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "dependsOn": "Build Firmware"
+        },
+        {
+            "label": "Debug Firmware (Manual GDB)",
+            "type": "shell",
+            "command": "./debug_firmware.sh",
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "dependsOn": "Build Firmware"
         }
     ]
 }
