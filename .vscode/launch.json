@@ -1,0 +1,85 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug STM32L432KC (OpenOCD + ST-Link)",
+            "type": "cortex-debug",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/stm32l432_firmware",
+            "servertype": "openocd",
+            "configFiles": [
+                "interface/stlink.cfg",
+                "target/stm32l4x.cfg"
+            ],
+            "searchDir": [
+                "/usr/share/openocd/scripts",
+                "/usr/local/share/openocd/scripts"
+            ],
+            "openOCDLaunchCommands": [
+                "monitor reset init",
+                "monitor halt"
+            ],
+            "showDeviceRegisters": true,
+            "registerUseNaturalFormat": false,
+            "variableUseNaturalFormat": false,
+            "toolchainPrefix": "arm-none-eabi",
+            "runToEntryPoint": "main",
+            "breakAfterReset": true,
+            "preLaunchCommands": [
+                "set mem inaccessible-by-default off",
+                "set architecture arm",
+                "monitor reset init",
+                "monitor halt",
+                "load"
+            ],
+            "postLaunchCommands": [
+                "monitor reset init",
+                "continue"
+            ],
+            "gdbPath": "/opt/arm-gnu-toolchain-14.2.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-gdb"
+        },
+        {
+            "name": "Attach to OpenOCD (Manual)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/stm32l432_firmware",
+            "args": [],
+            "stopAtEntry": true,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "/opt/arm-gnu-toolchain-14.2.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-gdb",
+            "miDebuggerServerAddress": "localhost:3333",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set architecture to arm",
+                    "text": "set architecture arm",
+                    "ignoreFailures": false
+                },
+                {
+                    "description": "Reset and halt target",
+                    "text": "monitor reset init",
+                    "ignoreFailures": false
+                },
+                {
+                    "description": "Load firmware",
+                    "text": "load",
+                    "ignoreFailures": false
+                }
+            ],
+            "customLaunchSetupCommands": [
+                {
+                    "text": "target extended-remote localhost:3333"
+                }
+            ],
+            "targetArchitecture": "arm"
+        }
+    ]
+}

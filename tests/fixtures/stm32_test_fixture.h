@@ -40,12 +40,11 @@ protected:
             .WillRepeatedly(::testing::Return(0));
 
         // Common FreeRTOS expectations
-        EXPECT_CALL(*mock_freertos, xTaskCreate(::testing::_, ::testing::_, ::testing::_,
-                                               ::testing::_, ::testing::_, ::testing::_))
-            .WillRepeatedly(::testing::Return(1)); // pdPASS
-
         EXPECT_CALL(*mock_freertos, vTaskStartScheduler())
             .WillRepeatedly(::testing::Return());
+
+        EXPECT_CALL(*mock_freertos, xTaskGetTickCount())
+            .WillRepeatedly(::testing::Return(0));
     }
 
     // Mock instances available to derived test classes
