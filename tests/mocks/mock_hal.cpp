@@ -85,4 +85,29 @@ extern "C" {
             throw std::runtime_error("Mock HAL not set");
         }
     }
+
+    // RCC Clock enable functions
+    void __HAL_RCC_GPIOB_CLK_ENABLE_IMPL(void) {
+        if (g_mock_hal) {
+            g_mock_hal->RCC_GPIOB_CLK_ENABLE();
+        } else {
+            throw std::runtime_error("Mock HAL not set");
+        }
+    }
+
+    void __HAL_RCC_GPIOA_CLK_ENABLE_IMPL(void) {
+        if (g_mock_hal) {
+            g_mock_hal->RCC_GPIOA_CLK_ENABLE();
+        } else {
+            throw std::runtime_error("Mock HAL not set");
+        }
+    }
+
+    void __HAL_RCC_GPIOC_CLK_ENABLE_IMPL(void) {
+        if (g_mock_hal) {
+            g_mock_hal->RCC_GPIOC_CLK_ENABLE();
+        } else {
+            throw std::runtime_error("Mock HAL not set");
+        }
+    }
 }

@@ -113,6 +113,14 @@ GPIO_PinState HAL_GPIO_ReadPin(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin);
 void HAL_GPIO_WritePin(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, GPIO_PinState PinState);
 void HAL_GPIO_TogglePin(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin);
 
+// Define original RCC macros as empty to allow redefinition
+#define __HAL_RCC_GPIOB_CLK_ENABLE()  do { } while(0)
+#define __HAL_RCC_GPIOA_CLK_ENABLE()  do { } while(0)
+#define __HAL_RCC_GPIOC_CLK_ENABLE()  do { } while(0)
+
 #ifdef __cplusplus
 }
 #endif
+
+// Include RCC mock macros for testing
+#include "stm32l4xx_hal_rcc_mock.h"
