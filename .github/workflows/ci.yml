@@ -1,0 +1,178 @@
+name: CI Firmware ARM
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+  workflow_dispatch: # permite rodar manualmente em qualquer branch
+
+jobs:
+  # ------------------------------------------------
+  # 0) PREPARE-DEPS - Instala dependências e baixa submodules
+  # ------------------------------------------------
+  prepare-deps:
+    runs-on: [self-hosted, Linux, X64, firmware]
+    container:
+      image: ubuntu:22.04
+    outputs:
+      build_dir: ${{ steps.set_build_dir.outputs.build_dir }}
+    steps:
+      - name: Install Git and tools
+        run: |
+          apt-get update
+          apt-get install -y git cmake build-essential ninja-build wget xz-utils
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive # baixa HAL, FreeRTOS, etc.
+
+      - name: Create build directory
+        id: set_build_dir
+        run: echo "build_dir=build" >> $GITHUB_OUTPUT
+
+      - name: Configure CMake to fetch external libs
+        run: |
+          mkdir -p build
+          cd build
+          cmake .. -G Ninja
+
+  # ------------------------------------------------
+  # 1) LINT (Cppcheck)
+  # ------------------------------------------------
+  lint:
+    runs-on: [self-hosted, Linux, X64, firmware]
+    container:
+      image: ubuntu:22.04
+    needs: prepare-deps
+    steps:
+      - name: Install Git and Cppcheck
+        run: |
+          apt-get update
+          apt-get install -y git cppcheck python3
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Verifz cppcheck-htmlreport
+        run: |
+          which cppcheck-htmlreport
+          cppcheck-htmlreport --version || echo "cppcheck-htmlreport not found, but it is available"
+
+      - name: Run cppcheck
+        run: |
+          cppcheck --enable=all --std=c++17 --suppress=missingIncludeSystem \
+            -I build/_deps \
+            src/ third_party/ startup/ \
+            -i third_party/ \
+            --xml 2> cppcheck-report.xml
+
+      - name: Generate HTML report
+        run: |
+          cppcheck-htmlreport \
+            --file=cppcheck-report.xml \
+            --report-dir=cppcheck-report-html \
+            --source-dir=.
+
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: cppcheck-html-report
+          path: cppcheck-report-html
+
+  # ------------------------------------------------
+  # 2) BUILD (Firmware ARM)
+  # ------------------------------------------------
+  build-firmware:
+    runs-on: [self-hosted, Linux, X64, firmware]
+    container:
+      image: ubuntu:22.04
+      options: --privileged
+    needs: prepare-deps
+    steps:
+      - name: Install Git and build tools
+        run: |
+          apt-get update
+          apt-get install -y git wget xz-utils cmake build-essential ninja-build
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Cache ARM Toolchain
+        id: cache-arm
+        uses: actions/cache@v4
+        with:
+          path: /cache/arm-gnu-toolchain
+          key: arm-toolchain-14.2
+
+      - name: Install ARM Toolchain
+        if: steps.cache-arm.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p /cache
+          wget -q https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/arm-gnu-toolchain-14.2.rel1-x86_64-arm-none-eabi.tar.xz
+          tar -xf arm-gnu-toolchain-14.2.rel1-x86_64-arm-none-eabi.tar.xz -C /cache
+          mv /cache/arm-gnu-toolchain-14.2.rel1-x86_64-arm-none-eabi /cache/arm-gnu-toolchain
+          rm arm-gnu-toolchain-14.2.rel1-x86_64-arm-none-eabi.tar.xz
+
+      - name: Verify ARM Toolchain
+        run: |
+          export PATH="/cache/arm-gnu-toolchain/bin:$PATH"
+          which arm-none-eabi-gcc
+          arm-none-eabi-gcc --version
+
+      - name: Load .env.ci
+        run: |
+          if [ -f .env.ci ]; then
+            export $(cat .env.ci | xargs)
+          fi
+          echo "ARM_GCC_TOOLCHAIN_PATH=$ARM_GCC_TOOLCHAIN_PATH" >> $GITHUB_ENV
+          echo "CMAKE_BUILD_CACHE=$CMAKE_BUILD_CACHE" >> $GITHUB_ENV
+          echo "BUILD_OUTPUT_DIR=$BUILD_OUTPUT_DIR" >> $GITHUB_ENV
+
+
+      - name: Build Firmware
+        run: |
+          export PATH="/cache/arm-gnu-toolchain/bin:$PATH"
+          mkdir -p $BUILD_OUTPUT_DIR
+          cd $BUILD_OUTPUT_DIR
+          cmake .. -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE=../cmake/arm-gcc-toolchain.cmake
+          ninja
+
+      - name: Upload Firmware Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-bin
+          path: build/*.bin
+
+  # ------------------------------------------------
+  # 3) UNIT TESTS (GoogleTest)
+  # ------------------------------------------------
+  unit-tests:
+    runs-on: [self-hosted, Linux, X64, firmware, fedora]
+    container:
+      image: ubuntu:22.04
+    needs: build-firmware
+    steps:
+      - name: Install Git and test tools
+        run: |
+          apt-get update
+          apt-get install -y git cmake build-essential g++
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build Unit Tests
+        run: |
+          mkdir -p build-tests
+          cd build-tests
+          cmake ../tests
+          make -j$(nproc)
+
+      - name: Run Unit Tests
+        run: |
+          cd build-tests
+          ctest --output-on-failure
