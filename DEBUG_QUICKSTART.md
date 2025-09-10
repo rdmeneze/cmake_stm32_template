@@ -1,18 +1,18 @@
-# STM32L432KC debug - practical guide
+# STM32L432KC Debug - Practical Guide
 
-## Configuration status
+## Configuration Status
 
-- **Compilated firmware** with debug symbols
+- **Compiled firmware** with debug symbols
 - **OpenOCD installed** and working
-- **Created Automatic scripts**
-- **Configurated VS Code** for debug
+- **Created automatic scripts**
+- **Configured VS Code** for debug
 - **GDB ARM toolchain** available
 
-## 3 ways to debugging
+## 3 Ways to Debug
 
-### 1. **VS Code debugging (Recommended)**
+### 1. **VS Code Debugging (Recommended)**
 
-**Pre-requirements:**
+**Prerequisites:**
 ```bash
 # Install Cortex-Debug extension on VS Code
 # Recommended extensions are in .vscode/extensions.json
@@ -37,7 +37,7 @@
 ./debug_firmware.sh
 ```
 
-### 3. **Complete manual debug**
+### 3. **Complete Manual Debug**
 
 **Terminal 1 (OpenOCD Server):**
 ```bash
@@ -48,7 +48,7 @@ openocd -f interface/stlink.cfg -f target/stm32l4x.cfg
 ```bash
 /opt/arm-gnu-toolchain-14.2.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-gdb build/stm32l432_firmware
 
-# No GDB:
+# In GDB:
 (gdb) target extended-remote localhost:3333
 (gdb) monitor reset init
 (gdb) load
@@ -56,37 +56,37 @@ openocd -f interface/stlink.cfg -f target/stm32l4x.cfg
 (gdb) continue
 ```
 
-## Useful GDB commands
+## Useful GDB Commands
 
-### Execution control:
+### Execution Control:
 ```gdb
 break main              # Breakpoint on main
 break led_task          # Breakpoint on LED task
-continue               # continue execution
+continue               # Continue execution
 step                   # Step into
 next                   # Step over
-finish
+finish                 # Step out
 ```
 
-### Variable inspection:
+### Variable Inspection:
 ```gdb
-print variable_name    # see variable value
-print *pointer         # see value pointed by
-print/x variable       # see in hex
-watch variable         # stop when variable changes the value
-info locals           # see all local variables
+print variable_name    # See variable value
+print *pointer         # See value pointed by
+print/x variable       # See in hexadecimal
+watch variable         # Stop when variable changes value
+info locals           # See all local variables
 ```
 
-### Registers and memory:
+### Registers and Memory:
 ```gdb
 info registers         # Inspect all registers
 print $r0              # Inspect register R0
 print $pc              # Inspect Program Counter
-x/16x 0x20000000      # Inspect 16 words on RAM
+x/16x 0x20000000      # Inspect 16 words in RAM
 x/i $pc               # Inspect current instruction
 ```
 
-### Specific for  STM32:
+### STM32 Specific:
 ```gdb
 # GPIO B registers (LED is on PB3)
 x/8x 0x48000400       # GPIOB base address
@@ -107,122 +107,104 @@ print (char*)pxCurrentTCB->pcTaskName
 # Verify all tasks
 info threads
 
-# thread/task switch
+# Thread/task switch
 thread 2
 ```
 
-## Created debug file
+## Created Debug Files
 
 ### Scripts:
-- `flash_firmware.sh` - Flash automatic via ST-Link
-- `debug_firmware.sh` - Debug GDB automatic
+- `flash_firmware.sh` - Automatic flash via ST-Link
+- `debug_firmware.sh` - Automatic GDB debug
 
 ### VS Code:
-- `.vscode/launch.json` - debug configuration
+- `.vscode/launch.json` - Debug configuration
 - `.vscode/tasks.json` - Build and debug tasks
-- `.vscode/extensions.json` - recommended extensions
-- `.vscode/settings.json` - Project confugurations
+- `.vscode/extensions.json` - Recommended extensions
+- `.vscode/settings.json` - Project configurations
 
-## 🎯 Funcionalidades de Debug Disponíveis
+## Available Debug Functionalities
 
-### ✅ Breakpoints
-- Linha por linha
-- Condicionais
-- Em funções específicas
-- Em endereços de memória
+### Breakpoints
+- Line by line
+- Conditional
+- Specific functions
+- Memory address
 
-### ✅ Stepping
-- Step Into (F11) - Entra em funções
-- Step Over (F10) - Pula funções
-- Step Out (Shift+F11) - Sai da função
+### Stepping
+- Step Into (F11)
+- Step Over (F10)
+- Step Out (Shift+F11)
 
-### ✅ Watch Variables
-- Variáveis locais e globais
-- Ponteiros e arrays
-- Estruturas FreeRTOS
-- Registradores do processador
+## FreeRTOS Debug
 
-### ✅ Memory Inspection
-- Flash memory (0x08000000)
-- SRAM (0x20000000)
-- Registradores de periféricos
-- Stack e heap
-
-### ✅ Real-time Features
-- Pausar/continuar execução
-- Reset do microcontrolador
-- Hot-reload de firmware
-- Live variable editing
-
-## 🔍 Debug do FreeRTOS
-
-### Tasks Debug:
+### Task Debug:
 ```gdb
-# Ver task atual
+# Current task
 print (char*)pxCurrentTCB->pcTaskName
 
-# Ver stack usage de uma task
+# Task stack usage
 print pxCurrentTCB->pxTopOfStack
 print pxCurrentTCB->pxStack
 
-# Ver estado das tasks
+# Task state
 info threads
 ```
 
-### Semáforos e Queues:
+### Semaphores and Queues:
 ```gdb
-# Se você tiver uma queue chamada xQueue
+# If you have a queue called xQueue
 print *xQueue
 ```
 
-## ⚡ Dicas de Performance
+## Performance Tips
 
 ### 1. **Optimize Debug Build**
-No CMakeLists.txt, use `-Og` em vez de `-O0`:
+In CMakeLists.txt, use `-Og` instead of `-O0`:
 ```cmake
-set(CMAKE_C_FLAGS_DEBUG "-g -Og") # Debug otimizado
+set(CMAKE_C_FLAGS_DEBUG "-g -Og") # Optimized debug
 ```
 
-### 2. **Breakpoints Eficientes**
-- Use breakpoints condicionais para loops
-- Evite breakpoints em ISRs de alta frequência
+### 2. **Efficient Breakpoints**
+- Use conditional breakpoints in loops
+- Avoid breakpoints in high frequency ISRs
 
 ### 3. **Memory Watchpoints**
 ```gdb
-watch *0x20000100    # Para quando endereço for modificado
-rwatch *0x20000100   # Para quando endereço for lido
+watch *0x20000100    # When address is changed
+rwatch *0x20000100   # When address is read
 ```
 
-## 🚨 Troubleshooting
+## Troubleshooting
 
-### ST-Link não conecta:
+### ST-Link Does Not Connect:
 ```bash
-# Verificar detecção USB
+# Verify USB detection
 lsusb | grep -i st
 
-# Verificar permissões
+# Verify permissions
 sudo usermod -a -G dialout $USER
-# Logout e login novamente
+# Then logout and login again
 ```
 
-### OpenOCD falha:
+### OpenOCD Failure:
 ```bash
-# Testar conexão
+# Test connection
 openocd -f interface/stlink.cfg -f target/stm32l4x.cfg -c "init; halt; exit"
 ```
 
-### Debug não para em breakpoints:
-- Verificar se firmware tem símbolos (`-g`)
-- Verificar se otimização não está muito alta
-- Usar `info sources` no GDB para ver arquivos com debug info
+### Debug Doesn't Stop at Breakpoints:
+- Verify firmware was compiled with `-g` option
+- Verify code optimization is not too high
+- Use `info sources` in GDB to see files with debug info
 
 ---
 
-## 🎯 Próximos Passos
+## Next Steps
 
-1. **Instalar Cortex-Debug** no VS Code
-2. **Conectar STM32L432KC** via USB
-3. **Testar flash** com `./flash_firmware.sh`
-4. **Testar debug** com F5 no VS Code
+1. **Install Cortex-Debug** in VS Code
+2. **Connect STM32L432KC** via USB
+3. **Test flash** with `./flash_firmware.sh`
+4. **Test debug** with F5 in VS Code
 
-O debug te permitirá ver exatamente como o FreeRTOS e suas tasks estão funcionando em tempo real!
+The debug will enable you to see exactly how FreeRTOS and its tasks are working in real time!

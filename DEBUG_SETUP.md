@@ -1,24 +1,24 @@
-# Debug do Firmware STM32L432KC no VS Code
+# STM32L432KC Firmware Debugging in VS Code
 
-## 🎯 Configuração Completa de Debug
+## Complete Debug Configuration
 
-Para debugar o firmware STM32L432KC no microcontrolador, você precisa de:
+To debug the STM32L432KC firmware on the microcontroller, you need:
 
-### 1. **Hardware Necessário**
-- **STM32L432KC Nucleo Board** (que você já tem)
-- **ST-Link V2.1** (integrado na Nucleo)
-- **Cabo USB** (para conectar a Nucleo ao PC)
+### 1. **Required Hardware**
+- **STM32L432KC Nucleo Board** (which you already have)
+- **ST-Link V2.1** (integrated in the Nucleo)
+- **USB Cable** (to connect Nucleo to PC)
 
-### 2. **Software e Extensões VS Code**
+### 2. **Software and VS Code Extensions**
 
-#### A. Instalar Extensões no VS Code:
+#### A. Install VS Code Extensions:
 ```bash
-# No VS Code, instale as seguintes extensões:
+# In VS Code, install the following extensions:
 # 1. Cortex-Debug (marus25.cortex-debug)
 # 2. C/C++ Extension Pack (ms-vscode.cpptools-extension-pack)
 ```
 
-#### B. Instalar OpenOCD (Debug Server):
+#### B. Install OpenOCD (Debug Server):
 ```bash
 # Ubuntu/Debian:
 sudo apt update
@@ -31,75 +31,75 @@ sudo dnf install openocd
 sudo pacman -S openocd
 ```
 
-#### C. Verificar ST-Link:
+#### C. Verify ST-Link:
 ```bash
-# Conecte a Nucleo e verifique se é detectada:
+# Connect the Nucleo and verify it's detected:
 lsusb | grep -i "st.*link"
-# Deve mostrar algo como: "STMicroelectronics ST-LINK/V2-1"
+# Should show something like: "STMicroelectronics ST-LINK/V2-1"
 ```
 
-### 3. **Configurações de Debug Implementadas**
+### 3. **Implemented Debug Configurations**
 
 #### A. Launch Configuration (`.vscode/launch.json`):
-Duas opções de debug foram configuradas:
+Two debug options have been configured:
 
-1. **OpenOCD + ST-Link** (Recomendado para Nucleo)
-2. **J-Link** (Caso tenha um J-Link externo)
+1. **OpenOCD + ST-Link** (Recommended for Nucleo)
+2. **J-Link** (If you have an external J-Link)
 
-#### B. Tarefas de Build (`.vscode/tasks.json`):
-- Build automático antes do debug
-- Compilação com símbolos de debug habilitados
+#### B. Build Tasks (`.vscode/tasks.json`):
+- Automatic build before debugging
+- Compilation with debug symbols enabled
 
-### 4. **Como Usar o Debug**
+### 4. **How to Use Debug**
 
-#### Passo a Passo:
+#### Step by Step:
 
-1. **Conectar Hardware**:
+1. **Connect Hardware**:
    ```
-   STM32L432KC Nucleo ←→ USB ←→ PC
+   STM32L432KC Nucleo <-> USB <-> PC
    ```
 
-2. **Verificar Compilação**:
+2. **Verify Compilation**:
    ```bash
-   # Compilar firmware com debug info
+   # Compile firmware with debug info
    cmake --build build --config Debug
    ```
 
-3. **Iniciar Debug no VS Code**:
-   - Abrir VS Code
-   - Ir para aba "Run and Debug" (Ctrl+Shift+D)
-   - Selecionar "Debug STM32L432KC (OpenOCD + ST-Link)"
-   - Pressionar F5 ou clicar "Start Debugging"
+3. **Start Debug in VS Code**:
+   - Open VS Code
+   - Go to "Run and Debug" tab (Ctrl+Shift+D)
+   - Select "Debug STM32L432KC (OpenOCD + ST-Link)"
+   - Press F5 or click "Start Debugging"
 
-#### Durante o Debug:
-- **Breakpoints**: Clique na margem esquerda do código
+#### During Debug:
+- **Breakpoints**: Click on left margin of code
 - **Step Over**: F10
 - **Step Into**: F11
 - **Continue**: F5
 - **Stop**: Shift+F5
 
-### 5. **Configuração OpenOCD**
+### 5. **OpenOCD Configuration**
 
-#### Arquivos de Configuração Utilizados:
+#### Configuration Files Used:
 ```bash
-# Interface (ST-Link integrado)
+# Interface (integrated ST-Link)
 /usr/share/openocd/scripts/interface/stlink.cfg
 
 # Target (STM32L4 family)
 /usr/share/openocd/scripts/target/stm32l4x.cfg
 ```
 
-#### Comandos OpenOCD Automáticos:
+#### Automatic OpenOCD Commands:
 ```gdb
-monitor reset init    # Reset e inicializar target
-monitor halt          # Parar execução
-load                  # Carregar firmware
-continue              # Continuar execução
+monitor reset init    # Reset and initialize target
+monitor halt          # Stop execution
+load                  # Load firmware
+continue              # Continue execution
 ```
 
-### 6. **Comandos Manuais de Debug**
+### 6. **Manual Debug Commands**
 
-#### Usando OpenOCD + GDB diretamente:
+#### Using OpenOCD + GDB directly:
 
 **Terminal 1 (OpenOCD Server)**:
 ```bash
@@ -108,10 +108,10 @@ openocd -f interface/stlink.cfg -f target/stm32l4x.cfg
 
 **Terminal 2 (GDB Client)**:
 ```bash
-# Iniciar GDB
+# Start GDB
 /opt/arm-gnu-toolchain-14.2.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-gdb build/stm32l432_firmware
 
-# Dentro do GDB:
+# Inside GDB:
 (gdb) target extended-remote localhost:3333
 (gdb) monitor reset init
 (gdb) monitor halt
@@ -120,13 +120,13 @@ openocd -f interface/stlink.cfg -f target/stm32l4x.cfg
 (gdb) continue
 ```
 
-### 7. **Debugging Features Disponíveis**
+### 7. **Available Debugging Features**
 
-#### A. Registradores do Processador:
+#### A. Processor Registers:
 - **Cortex-M4 Core Registers**: R0-R15, PSR, etc.
-- **FPU Registers**: S0-S31 (ponto flutuante)
+- **FPU Registers**: S0-S31 (floating point)
 
-#### B. Periféricos STM32:
+#### B. STM32 Peripherals:
 - **GPIO Registers**: GPIOx->ODR, IDR, MODER, etc.
 - **Clock Registers**: RCC->CR, CFGR, etc.
 - **Timer Registers**: TIMx->CNT, CCR, etc.
@@ -138,38 +138,38 @@ openocd -f interface/stlink.cfg -f target/stm32l4x.cfg
 
 ### 8. **Troubleshooting**
 
-#### Problemas Comuns:
+#### Common Problems:
 
-**A. ST-Link não detectado**:
+**A. ST-Link not detected**:
 ```bash
-# Verificar permissões USB
+# Check USB permissions
 sudo usermod -a -G dialout $USER
-# Logout e login novamente
+# Logout and login again
 ```
 
-**B. OpenOCD falha ao conectar**:
+**B. OpenOCD fails to connect**:
 ```bash
-# Verificar se o target está conectado
+# Check if target is connected
 openocd -f interface/stlink.cfg -f target/stm32l4x.cfg -c "init; targets; exit"
 ```
 
-**C. Debug não para em breakpoints**:
-- Verificar se firmware foi compilado com `-g`
-- Verificar se optimization está em `-O0` ou `-Og`
+**C. Debug doesn't stop at breakpoints**:
+- Check if firmware was compiled with `-g`
+- Check if optimization is at `-O0` or `-Og`
 
-### 9. **Configurações CMake para Debug**
+### 9. **CMake Configuration for Debug**
 
-#### Flags de Compilação (já configuradas):
+#### Compilation Flags (already configured):
 ```cmake
-# Debug flags habilitados:
+# Debug flags enabled:
 -g                    # Generate debug info
 -gdwarf-2            # DWARF-2 debug format
 -O0                  # No optimization
 ```
 
-### 10. **Scripts Úteis**
+### 10. **Useful Scripts**
 
-#### Script de Flash (opcional):
+#### Flash Script (optional):
 ```bash
 #!/bin/bash
 # flash_firmware.sh
@@ -177,7 +177,7 @@ openocd -f interface/stlink.cfg -f target/stm32l4x.cfg \
     -c "program build/stm32l432_firmware verify reset exit"
 ```
 
-#### Script de Debug Rápido:
+#### Quick Debug Script:
 ```bash
 #!/bin/bash
 # quick_debug.sh
@@ -192,17 +192,17 @@ sleep 2
 
 ---
 
-## 🚀 Próximos Passos
+## Next Steps
 
-1. **Instalar Cortex-Debug extension no VS Code**
-2. **Instalar OpenOCD** no sistema
-3. **Conectar STM32L432KC** via USB
-4. **Testar debug** com F5 no VS Code
+1. **Install Cortex-Debug extension in VS Code**
+2. **Install OpenOCD** on the system
+3. **Connect STM32L432KC** via USB
+4. **Test debug** with F5 in VS Code
 
-O debug te permitirá:
-- ✅ **Stepping** linha por linha
-- ✅ **Breakpoints** em qualquer função
-- ✅ **Watch variables** em tempo real
-- ✅ **Memory inspection** de registradores e RAM
-- ✅ **Call stack** analysis
-- ✅ **FreeRTOS task debugging**
+Debug will allow you to:
+- Stepping line by line
+- Breakpoints in any function
+- Watch variables in real time
+- Memory inspection of registers and RAM
+- Call stack analysis
+- FreeRTOS task debugging

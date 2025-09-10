@@ -1,61 +1,61 @@
-# Análise da Configuração Google Test e Mock HAL - STM32L432 Project
+# Google Test Configuration and HAL Mock Analysis - STM32L432 Project
 
-## Resumo Executivo
+## Executive Summary
 
-Analisei a configuração atual do Google Test e implementei melhorias significativas para o mock das chamadas HAL da STMicroelectronics. O projeto agora possui uma arquitetura robusta de testes unitários com **19 testes passando**, incluindo mocks completos para funções STM32 HAL.
+I analyzed the current Google Test configuration and implemented significant improvements for mocking STMicroelectronics HAL calls. The project now has a robust unit testing architecture with **19 passing tests**, including complete mocks for STM32 HAL functions.
 
-## 🎯 Estado Atual da Configuração
+## Current Configuration Status
 
-### ✅ Pontos Positivos Identificados
+### Positive Points Identified
 
-1. **Google Test Configuração**:
-   - Google Test v1.14.0 corretamente configurado via FetchContent
-   - GMock integrado e funcionando
-   - CMake standalone para testes separado do firmware
-   - Script de execução automática (`run_tests.sh`)
+1. **Google Test Configuration**:
+   - Google Test v1.14.0 correctly configured via FetchContent
+   - GMock integrated and working
+   - Standalone CMake for tests separated from firmware
+   - Automated execution script (`run_tests.sh`)
 
-2. **Estrutura de Diretórios**:
+2. **Directory Structure**:
    ```
    tests/
-   ├── unit/           # Testes unitários
-   ├── fixtures/       # Classes de teste e stubs STM32
-   ├── mocks/          # Mocks para HAL e FreeRTOS
-   └── build/          # Build isolado dos testes
+   ├── unit/           # Unit tests
+   ├── fixtures/       # Test classes and STM32 stubs
+   ├── mocks/          # Mocks for HAL and FreeRTOS
+   └── build/          # Isolated test build
    ```
 
-3. **Cobertura de Testes**:
-   - ✅ Smoke tests (validação básica)
-   - ✅ Testes de componentes simples (LedController)
-   - ✅ **Novo**: Testes com mocks HAL reais
-   - ✅ **Novo**: Cenários complexos multi-chamadas
+3. **Test Coverage**:
+   - Smoke tests (basic validation)
+   - Simple component tests (LedController)
+   - **New**: Tests with real HAL mocks
+   - **New**: Complex multi-call scenarios
 
-## 🔧 Melhorias Implementadas
+## Implemented Improvements
 
-### 1. **Mock HAL Completo e Robusto**
+### 1. **Complete and Robust HAL Mock**
 
-Implementei um sistema de mock HAL que intercepta **todas as chamadas** das funções STM32:
+I implemented a HAL mock system that intercepts **all calls** to STM32 functions:
 
 ```cpp
-// Principais funções HAL mockadas:
-- HAL_GPIO_Init()       // Inicialização de GPIO
-- HAL_GPIO_WritePin()   // Escrita em pino
-- HAL_GPIO_ReadPin()    // Leitura de pino
-- HAL_GPIO_TogglePin()  // Toggle de pino
+// Main HAL functions mocked:
+- HAL_GPIO_Init()       // GPIO initialization
+- HAL_GPIO_WritePin()   // Pin write
+- HAL_GPIO_ReadPin()    // Pin read
+- HAL_GPIO_TogglePin()  // Pin toggle
 - HAL_Delay()           // Delays
 - HAL_GetTick()         // System tick
 ```
 
-### 2. **Arquitetura de Test Fixtures**
+### 2. **Test Fixtures Architecture**
 
-Criei uma base sólida com `STM32TestFixture` que:
-- Configura automaticamente mocks HAL e FreeRTOS
-- Define expectativas padrão comuns
-- Gerencia lifecycle dos mocks
-- Simplifica criação de novos testes
+I created a solid foundation with `STM32TestFixture` that:
+- Automatically configures HAL and FreeRTOS mocks
+- Defines common default expectations
+- Manages mock lifecycle
+- Simplifies creation of new tests
 
-### 3. **Testes Demonstrativos Avançados**
+### 3. **Advanced Demonstrative Tests**
 
-#### Exemplo: Mock de Inicialização GPIO
+#### Example: GPIO Initialization Mock
 ```cpp
 TEST_F(RealLedControllerTest, InitializationCallsHALGPIOInit) {
     EXPECT_CALL(*mock_hal, GPIO_Init(GPIOB, ::testing::_))
@@ -64,7 +64,7 @@ TEST_F(RealLedControllerTest, InitializationCallsHALGPIOInit) {
             ::testing::Invoke([](GPIO_TypeDef* port, GPIO_InitTypeDef* init) {
                 EXPECT_EQ(init->Pin, GPIO_PIN_3);
                 EXPECT_EQ(init->Mode, GPIO_MODE_OUTPUT_PP);
-                // Validação completa da configuração
+                // Complete configuration validation
             })
         ));
 
@@ -72,10 +72,10 @@ TEST_F(RealLedControllerTest, InitializationCallsHALGPIOInit) {
 }
 ```
 
-#### Exemplo: Cenário Complexo Multi-Chamadas
+#### Example: Complex Multi-Call Scenario
 ```cpp
 TEST_F(RealLedControllerTest, ComplexScenarioWithMultipleHALCalls) {
-    ::testing::InSequence seq;  // Garante ordem das chamadas
+    ::testing::InSequence seq;  // Ensures call order
 
     EXPECT_CALL(*mock_hal, GPIO_Init(GPIOB, ::testing::_));
     EXPECT_CALL(*mock_hal, GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_SET));
@@ -85,62 +85,62 @@ TEST_F(RealLedControllerTest, ComplexScenarioWithMultipleHALCalls) {
     EXPECT_CALL(*mock_hal, GPIO_ReadPin(GPIOB, GPIO_PIN_3))
         .WillOnce(::testing::Return(GPIO_PIN_RESET));
 
-    // Execução do cenário completo...
+    // Complete scenario execution...
 }
 ```
 
-## 🏗️ Arquitetura de Mock Implementada
+## Implemented Mock Architecture
 
-### Camada de Abstração STM32
+### STM32 Abstraction Layer
 ```
-[Código de Aplicação]
+[Application Code]
         ↓
 [HAL_GPIO_*() calls]
         ↓
-[Mock Interceptor Layer]  ← Intercepta no ambiente de teste
+[Mock Interceptor Layer]  ← Intercepts in test environment
         ↓
-[MockHALImpl + GMock]     ← Verificações e simulações
+[MockHALImpl + GMock]     ← Verifications and simulations
 ```
 
-### Vantagens da Abordagem:
+### Approach Advantages:
 
-1. **Interceptação Transparente**: Código de aplicação não precisa ser modificado
-2. **Validação Precisa**: Verifica parâmetros exatos passados para HAL
-3. **Simulação Realista**: Pode simular diferentes estados de hardware
-4. **Isolamento Completo**: Testes rodam no host sem dependência de hardware
+1. **Transparent Interception**: Application code doesn't need modification
+2. **Precise Validation**: Verifies exact parameters passed to HAL
+3. **Realistic Simulation**: Can simulate different hardware states
+4. **Complete Isolation**: Tests run on host without hardware dependency
 
-## 📊 Resultados dos Testes
+## Test Results
 
 ```bash
 [==========] Running 19 tests from 5 test suites.
 [  PASSED  ] 19 tests.
 ```
 
-### Breakdown por Categoria:
-- **SmokeTest**: 2 testes (Google Test + GMock básico)
-- **VersionTest**: 1 teste (verificação de header)
-- **LedControllerTest**: 5 testes (lógica simples)
-- **HALMockingTest**: 5 testes (demonstração de mocks HAL)
-- **RealLedControllerTest**: 6 testes (integração HAL real)
+### Breakdown by Category:
+- **SmokeTest**: 2 tests (Google Test + basic GMock)
+- **VersionTest**: 1 test (header verification)
+- **LedControllerTest**: 5 tests (simple logic)
+- **HALMockingTest**: 5 tests (HAL mock demonstration)
+- **RealLedControllerTest**: 6 tests (real HAL integration)
 
-## 🎯 Recomendações para Uso Avançado
+## Recommendations for Advanced Usage
 
-### 1. **Para Novos Componentes**
+### 1. **For New Components**
 
-Sempre herde de `STM32TestFixture`:
+Always inherit from `STM32TestFixture`:
 ```cpp
-class MeuComponenteTest : public STM32TestFixture {
+class MyComponentTest : public STM32TestFixture {
 protected:
     void SetUp() override {
         STM32TestFixture::SetUp();
-        // Setup específico do componente
+        // Component-specific setup
     }
 };
 ```
 
-### 2. **Para Mocks de Outras Periféricas**
+### 2. **For Other Peripheral Mocks**
 
-Expandir `mock_hal.h` adicionando:
+Expand `mock_hal.h` by adding:
 ```cpp
 // UART
 MOCK_METHOD(HAL_StatusTypeDef, UART_Transmit,
@@ -155,21 +155,21 @@ MOCK_METHOD(HAL_StatusTypeDef, I2C_Master_Transmit,
     (I2C_HandleTypeDef* hi2c, uint16_t DevAddress, uint8_t* pData, uint16_t Size, uint32_t Timeout));
 ```
 
-### 3. **Para Cenários de Erro**
+### 3. **For Error Scenarios**
 
-Simular falhas de hardware:
+Simulate hardware failures:
 ```cpp
 TEST_F(ComponentTest, HandlesHALErrors) {
     EXPECT_CALL(*mock_hal, GPIO_Init(::testing::_, ::testing::_))
         .WillOnce(::testing::Throw(std::runtime_error("HAL Init failed")));
 
-    // Verificar como código lida com falhas
+    // Verify how code handles failures
 }
 ```
 
-### 4. **Para Testes Temporais**
+### 4. **For Temporal Tests**
 
-Simular comportamento baseado em tempo:
+Simulate time-based behavior:
 ```cpp
 TEST_F(TimingTest, PeriodicBehavior) {
     EXPECT_CALL(*mock_hal, HAL_GetTick())
@@ -177,31 +177,31 @@ TEST_F(TimingTest, PeriodicBehavior) {
         .WillOnce(::testing::Return(500))    // t=500ms
         .WillOnce(::testing::Return(1000));  // t=1000ms
 
-    // Testar comportamento periódico
+    // Test periodic behavior
 }
 ```
 
-## 🚀 Próximos Passos Sugeridos
+## Suggested Next Steps
 
-1. **Expandir Coverage**: Adicionar mocks para UART, SPI, I2C conforme necessário
-2. **Testes de Integração**: Criar testes que combinam múltiplas periféricas
-3. **Performance Tests**: Validar tempos de resposta de componentes críticos
-4. **Error Handling**: Expandir testes de cenários de erro e recovery
-5. **CI/CD Integration**: Integrar execução automática no pipeline
+1. **Expand Coverage**: Add mocks for UART, SPI, I2C as needed
+2. **Integration Tests**: Create tests that combine multiple peripherals
+3. **Performance Tests**: Validate response times of critical components
+4. **Error Handling**: Expand error scenario and recovery tests
+5. **CI/CD Integration**: Integrate automated execution in pipeline
 
-## 📁 Arquivos Criados/Modificados
+## Created/Modified Files
 
-### Novos Arquivos:
-- `tests/unit/test_hal_mocking.cpp` - Demonstrações básicas de HAL mocking
-- `tests/unit/test_real_led_controller.cpp` - Testes de componente real com HAL
-- `tests/fixtures/real_led_controller.{h,cpp}` - Classe que usa HAL real
-- `tests/fixtures/stm32l4xx_hal.{h,cpp}` - Headers STM32 para ambiente de teste
+### New Files:
+- `tests/unit/test_hal_mocking.cpp` - Basic HAL mocking demonstrations
+- `tests/unit/test_real_led_controller.cpp` - Real component tests with HAL
+- `tests/fixtures/real_led_controller.{h,cpp}` - Class that uses real HAL
+- `tests/fixtures/stm32l4xx_hal.{h,cpp}` - STM32 headers for test environment
 
-### Modificações:
-- `tests/CMakeLists.txt` - Adicionados novos arquivos e configurações
-- `tests/mocks/mock_freertos.cpp` - Implementadas funções de setup faltantes
-- `tests/fixtures/stm32_test_fixture.h` - Corrigidas expectativas padrão
+### Modifications:
+- `tests/CMakeLists.txt` - Added new files and configurations
+- `tests/mocks/mock_freertos.cpp` - Implemented missing setup functions
+- `tests/fixtures/stm32_test_fixture.h` - Fixed default expectations
 
 ---
 
-**Conclusão**: Sua configuração Google Test agora está robusta e pronta para desenvolvimento de testes unitários avançados com mock completo das chamadas HAL da STMicroelectronics. A arquitetura implementada permite testing eficiente do código de aplicação sem dependência de hardware real.
+**Conclusion**: Your Google Test configuration is now robust and ready for advanced unit test development with complete mocking of STMicroelectronics HAL calls. The implemented architecture allows efficient testing of application code without real hardware dependency.
