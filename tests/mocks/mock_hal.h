@@ -15,6 +15,11 @@ public:
     virtual void GPIO_WritePin(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, GPIO_PinState PinState) = 0;
     virtual void GPIO_TogglePin(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin) = 0;
 
+    // RCC Clock functions
+    virtual void RCC_GPIOB_CLK_ENABLE(void) = 0;
+    virtual void RCC_GPIOA_CLK_ENABLE(void) = 0;
+    virtual void RCC_GPIOC_CLK_ENABLE(void) = 0;
+
     // System functions
     virtual HAL_StatusTypeDef HAL_Init(void) = 0;
     virtual void HAL_Delay(uint32_t Delay) = 0;
@@ -30,6 +35,10 @@ public:
     MOCK_METHOD(GPIO_PinState, GPIO_ReadPin, (GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin), (override));
     MOCK_METHOD(void, GPIO_WritePin, (GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, GPIO_PinState PinState), (override));
     MOCK_METHOD(void, GPIO_TogglePin, (GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin), (override));
+
+    MOCK_METHOD(void, RCC_GPIOB_CLK_ENABLE, (), (override));
+    MOCK_METHOD(void, RCC_GPIOA_CLK_ENABLE, (), (override));
+    MOCK_METHOD(void, RCC_GPIOC_CLK_ENABLE, (), (override));
 
     MOCK_METHOD(HAL_StatusTypeDef, HAL_Init, (), (override));
     MOCK_METHOD(void, HAL_Delay, (uint32_t Delay), (override));

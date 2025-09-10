@@ -33,9 +33,12 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
         unit/test_led_controller.cpp
         unit/test_hal_mocking.cpp
         unit/test_real_led_controller.cpp
+        unit/test_main_functions.cpp
         fixtures/led_controller.cpp
         fixtures/real_led_controller.cpp
+        fixtures/main_functions.cpp
         fixtures/stm32l4xx_hal.cpp
+        fixtures/stm32_memory_mock.cpp
         mocks/mock_hal.cpp
         mocks/mock_freertos.cpp
     )
