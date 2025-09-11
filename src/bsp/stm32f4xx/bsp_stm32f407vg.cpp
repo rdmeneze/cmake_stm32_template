@@ -4,9 +4,9 @@
  */
 
 extern "C" {
-#include "bsp.h"
-#include "hal_gpio.h"
-#include "hal_rcc.h"
+#include "../common/bsp.h"
+#include "../../hal/interfaces/hal_gpio.h"
+#include "../../hal/interfaces/hal_rcc.h"
 #include "stm32f4xx_hal.h"
 }
 
