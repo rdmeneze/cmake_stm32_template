@@ -14,13 +14,15 @@ extern "C" {
 
 // STM32F407VG specific configuration
 static const bsp_config_t bsp_config_f407vg = {
+    .board_name = "STM32F4-Discovery",
+    .mcu_name = "STM32F407VG",
     .mcu_family = BSP_MCU_FAMILY_STM32F4XX,
     .flash_size_kb = 1024,  // 1MB Flash
     .ram_size_kb = 192,     // 192KB SRAM
-    .max_clock_mhz = 168,   // 168MHz max
-    .has_fpu = true,
-    .has_dsp = true,
-    .voltage_range = BSP_VOLTAGE_1V8_TO_3V6
+    .pin_count = sizeof(pin_configs_f407vg) / sizeof(pin_configs_f407vg[0]),
+    .pins = pin_configs_f407vg,
+    .clock_config = NULL,   // Set to appropriate clock config if available
+    .mcu_specific_data = NULL
 };
 
 // Pin configuration for STM32F4-Discovery board
