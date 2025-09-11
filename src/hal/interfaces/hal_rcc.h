@@ -24,7 +24,7 @@ typedef enum {
     HAL_RCC_CLOCK_LSI,      // Low Speed Internal oscillator
     HAL_RCC_CLOCK_LSE,      // Low Speed External oscillator
     HAL_RCC_CLOCK_PLL,      // Phase-Locked Loop
-    HAL_RCC_CLOCK_MSI       // Multi-Speed Internal (L4 specific)
+    HAL_RCC_CLOCK_MSI       // Multi-Speed Internal (available on some STM32 families)
 } hal_rcc_clock_source_t;
 
 /**
