@@ -1,5 +1,5 @@
 /**
- * @file bsp_stm32l432kc.c
+ * @file bsp_stm32l432kc.cpp
  * @brief Board Support Package for STM32L432KC (Nucleo-32)
  * 
  * This file implements the BSP interface for the STM32L432KC microcontroller
