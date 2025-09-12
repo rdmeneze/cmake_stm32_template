@@ -2,9 +2,9 @@ name: SonarQube Analysis
 
 on:
   push:
-    branches: [ main, develop, 15-add-support-to-multiple-stm32-processors ]
+    branches: [ main, develop ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]  # Permite PRs para main e develop
 
 jobs:
   sonarqube-analysis:
@@ -86,7 +86,7 @@ jobs:
           echo "SUCCESS: SonarQube analysis completed successfully"
           echo "Report details:"
           cat .scannerwork/report-task.txt
-          
+
           # Extrair URL do dashboard
           if grep -q "dashboardUrl=" .scannerwork/report-task.txt; then
             DASHBOARD_URL=$(grep "dashboardUrl=" .scannerwork/report-task.txt | cut -d'=' -f2-)
