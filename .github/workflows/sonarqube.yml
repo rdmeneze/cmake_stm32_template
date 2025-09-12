@@ -36,13 +36,18 @@ jobs:
           lcov \
           ca-certificates
         
-        # Install ARM toolchain
-        echo "Installing ARM GCC toolchain..."
-        cd /tmp
-        wget -q https://developer.arm.com/-/media/Files/downloads/gnu/13.2.rel1/binrel/arm-gnu-toolchain-13.2.rel1-x86_64-arm-none-eabi.tar.xz
-        tar -xf arm-gnu-toolchain-13.2.rel1-x86_64-arm-none-eabi.tar.xz
-        mv arm-gnu-toolchain-13.2.rel1-x86_64-arm-none-eabi /opt/arm-toolchain
-        echo "/opt/arm-toolchain/bin" >> $GITHUB_PATH
+        # Install ARM toolchain (using Ubuntu packages - more reliable)
+        echo "Installing ARM GCC toolchain via apt..."
+        apt-get install -y --no-install-recommends \
+          gcc-arm-none-eabi \
+          binutils-arm-none-eabi \
+          libnewlib-arm-none-eabi \
+          gdb-multiarch
+        
+        # Verify installation
+        echo "ARM toolchain installed successfully"
+        arm-none-eabi-gcc --version | head -1
+        which arm-none-eabi-gcc
         
         # Install Python tools
         pip3 install lizard
