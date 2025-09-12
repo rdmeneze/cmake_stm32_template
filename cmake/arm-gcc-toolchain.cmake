@@ -19,6 +19,7 @@ set(CMAKE_CXX_COMPILER ${ARM_TOOLCHAIN_PATH}/bin/arm-none-eabi-g++)
 set(CMAKE_ASM_COMPILER ${ARM_TOOLCHAIN_PATH}/bin/arm-none-eabi-gcc)
 
 set(CMAKE_OBJCOPY ${ARM_TOOLCHAIN_PATH}/bin/arm-none-eabi-objcopy CACHE INTERNAL "objcopy tool")
+set(CMAKE_SIZE ${ARM_TOOLCHAIN_PATH}/bin/arm-none-eabi-size CACHE INTERNAL "size tool")
 
 set(CMAKE_C_COMPILER_WORKS TRUE CACHE INTERNAL "")
 set(CMAKE_CXX_COMPILER_WORKS TRUE CACHE INTERNAL "")

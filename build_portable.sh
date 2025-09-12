@@ -146,19 +146,35 @@ configure_project() {
     print_info "Build directory: $build_dir"
     
     # Use portable CMakeLists.txt if it exists
-    local cmake_file="CMakeLists.txt"
+    local use_portable=false
     if [[ -f "CMakeLists_portable.txt" ]]; then
-        cmake_file="CMakeLists_portable.txt"
+        # Backup original and use portable version
+        if [[ -f "CMakeLists.txt" ]]; then
+            cp "CMakeLists.txt" "CMakeLists_original_backup.txt"
+        fi
+        cp "CMakeLists_portable.txt" "CMakeLists.txt"
+        use_portable=true
         print_info "Using portable CMake configuration"
     fi
     
     cmake -B "$build_dir" \
+          -S "." \
           -DCMAKE_BUILD_TYPE="$build_type" \
           -DTARGET_BOARD="$target" \
-          -DCMAKE_TOOLCHAIN_FILE="cmake/arm-gcc-toolchain.cmake" \
-          -f "$cmake_file"
+          -DCMAKE_TOOLCHAIN_FILE="cmake/arm-gcc-toolchain.cmake"
     
-    if [[ $? -eq 0 ]]; then
+    local cmake_result=$?
+    
+    # Restore original CMakeLists.txt if we used portable version
+    if [[ "$use_portable" == true ]]; then
+        if [[ -f "CMakeLists_original_backup.txt" ]]; then
+            mv "CMakeLists_original_backup.txt" "CMakeLists.txt"
+        else
+            rm -f "CMakeLists.txt"
+        fi
+    fi
+    
+    if [[ $cmake_result -eq 0 ]]; then
         print_success "Configuration completed successfully"
     else
         print_error "Configuration failed"

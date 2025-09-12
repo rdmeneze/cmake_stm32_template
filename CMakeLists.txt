@@ -1,31 +1,54 @@
 cmake_minimum_required(VERSION 3.21)
 set(CMAKE_VERBOSE_MAKEFILE ON)
-# Define o nome do projeto e linguagens usadas
-project(stm32l432_firmware C CXX ASM)
 
-# Padroniza versões das linguagens
+# Target board selection
+if(NOT DEFINED TARGET_BOARD)
+    set(TARGET_BOARD "stm32l432kc" CACHE STRING "Target board selection")
+    message(STATUS "No target board specified, defaulting to: ${TARGET_BOARD}")
+endif()
+
+message(STATUS "Building for target board: ${TARGET_BOARD}")
+
+# Load target-specific configuration
+set(TARGET_CONFIG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/targets/${TARGET_BOARD}.cmake")
+if(NOT EXISTS ${TARGET_CONFIG_FILE})
+    message(FATAL_ERROR "Target configuration file not found: ${TARGET_CONFIG_FILE}")
+endif()
+
+include(${TARGET_CONFIG_FILE})
+
+# Define project name based on target
+project(${TARGET_BOARD}_firmware C CXX ASM)
+
+# Standard language versions
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED OFF)
 set(CMAKE_C_EXTENSIONS OFF)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED OFF)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/STM32CubeL4")
-  message(FATAL_ERROR "Submodule STM32CubeL4 did not exist. Please run:
-                      git submodule update --init --recursive")
+# Check for required STM32Cube library
+if(MCU_FAMILY STREQUAL "STM32L4xx")
+    set(STM32CUBE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/STM32CubeL4")
+elseif(MCU_FAMILY STREQUAL "STM32F4xx")
+    set(STM32CUBE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/STM32CubeF4")
+else()
+    message(FATAL_ERROR "Unsupported MCU family: ${MCU_FAMILY}")
 endif()
 
+if(NOT EXISTS "${STM32CUBE_DIR}")
+    message(FATAL_ERROR "STM32Cube library not found at: ${STM32CUBE_DIR}
+                         Please run: git submodule update --init --recursive")
+endif()
+
+# Version detection from Git
 find_package(Git REQUIRED)
 
 message(STATUS "Using Git executable: ${GIT_EXECUTABLE}")
 message(STATUS "Using CMake version: ${CMAKE_VERSION}")
-message(STATUS "Current working dir for Git: ${CMAKE_SOURCE_DIR}")
-file(GLOB GIT_DIR_CONTENTS ${CMAKE_SOURCE_DIR}/.git)
-message(STATUS "Git dir contents: ${GIT_DIR_CONTENTS}")
 
-# Tenta usar git describe com tags começando com "v"
 execute_process(
     COMMAND ${GIT_EXECUTABLE} describe --tags --match "v*"
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -35,7 +58,7 @@ execute_process(
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
-# Fallback: tenta pegar o hash curto se não achou uma tag válida
+# Fallback to short hash if no valid tag found
 if(NOT APP_VERSION OR GIT_RESULT)
     execute_process(
         COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
@@ -46,148 +69,163 @@ if(NOT APP_VERSION OR GIT_RESULT)
     set(APP_VERSION "v0.0.0-${APP_VERSION}")
 endif()
 
-message(STATUS "App version set to: ${APP_VERSION}")
-
-message(STATUS "Git describe output: ${APP_VERSION}")
-message(STATUS "Git describe result: ${GIT_RESULT}")
-message(STATUS "Git describe error: ${GIT_ERROR}")
-
-if (NOT APP_VERSION)
-  set(APP_VERSION "v0.0.0-unknown")
-  message(WARNING "Failed to determine VERSION from Git tags. Using default version \"${APP_VERSION}\".")
-  message(WARNING "Git result: ${GIT_RESULT}")
-  message(WARNING "Git error: ${GIT_ERROR}")
+if(NOT APP_VERSION)
+    set(APP_VERSION "v0.0.0-unknown")
+    message(WARNING "Failed to determine version from Git. Using default: ${APP_VERSION}")
 endif()
 
+message(STATUS "App version: ${APP_VERSION}")
+
+# Generate version header
 configure_file(
-        ${CMAKE_SOURCE_DIR}/version.h.in
-        ${CMAKE_BINARY_DIR}/version.h
-        @ONLY
+    ${CMAKE_SOURCE_DIR}/version.h.in
+    ${CMAKE_BINARY_DIR}/version.h
+    @ONLY
 )
 
-add_custom_target(generate_version_header DEPENDS ${VERSION_HEADER})
+add_custom_target(generate_version_header DEPENDS ${CMAKE_BINARY_DIR}/version.h)
 
-
-# main directories
-set(SRC_DIR ${CMAKE_SOURCE_DIR}/src/app)
-set(HAL_DIR ${CMAKE_SOURCE_DIR}/third_party/STM32CubeL4/Drivers/STM32L4xx_HAL_Driver)
-set(CMSIS_DIR ${CMAKE_SOURCE_DIR}/third_party/STM32CubeL4/Drivers/CMSIS)
+# Directory structure
+set(SRC_DIR ${CMAKE_SOURCE_DIR}/src)
+set(HAL_DIR ${STM32CUBE_DIR}/Drivers/${MCU_FAMILY}_HAL_Driver)
+set(CMSIS_DIR ${STM32CUBE_DIR}/Drivers/CMSIS)
 set(STARTUP_DIR ${CMAKE_SOURCE_DIR}/startup)
-set(FREERTOS_DIR ${CMAKE_SOURCE_DIR}/third_party/STM32CubeL4/Middlewares/Third_Party/FreeRTOS/Source)
-set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/linker/STM32L432KCUX_FLASH.ld)
+set(FREERTOS_DIR ${STM32CUBE_DIR}/Middlewares/Third_Party/FreeRTOS/Source)
 
-message(STATUS "SRC_DIR = ${SRC_DIR}")
-message(STATUS "HAL_DIR = ${HAL_DIR}")
-message(STATUS "CMSIS_DIR = ${CMSIS_DIR}")
-message(STATUS "STARTUP_DIR = ${STARTUP_DIR}")
-message(STATUS "LINKER_SCRIPT = ${LINKER_SCRIPT}")
-message(STATUS "CMAKE_SOURCE_DIR = ${CMAKE_SOURCE_DIR}")
+message(STATUS "Source directories:")
+message(STATUS "  SRC_DIR = ${SRC_DIR}")
+message(STATUS "  HAL_DIR = ${HAL_DIR}")
+message(STATUS "  CMSIS_DIR = ${CMSIS_DIR}")
+message(STATUS "  STARTUP_DIR = ${STARTUP_DIR}")
+message(STATUS "  LINKER_SCRIPT = ${LINKER_SCRIPT}")
 
+# Common compilation flags (from target configuration)
+set(COMMON_FLAGS ${TARGET_COMPILE_OPTIONS})
+
+# Include CMake modules (must be after defining flags)
+include(${CMAKE_SOURCE_DIR}/cmake/hal_sources.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/freertos_sources.cmake)
+
+# Include directories
 set(HAL_INCLUDES
-        ${CMAKE_SOURCE_DIR}/third_party/STM32CubeL4/Drivers/STM32L4xx_HAL_Driver/Inc
-        ${STARTUP_DIR}/Inc
-        ${CMAKE_SOURCE_DIR}/third_party/STM32CubeL4/Drivers/CMSIS/Device/ST/STM32L4xx/Include
-        ${CMAKE_SOURCE_DIR}/third_party/STM32CubeL4/Drivers/CMSIS/Include
-        ${CMAKE_BINARY_DIR}
+    ${HAL_DIR}/Inc
+    ${STARTUP_DIR}/Inc
+    ${CMSIS_DIR}/Device/ST/${MCU_FAMILY}/Include
+    ${CMSIS_DIR}/Include
+    ${CMSIS_DIR}/Core/Include
+    ${CMAKE_BINARY_DIR}
+    ${SRC_DIR}/hal/interfaces
+    ${SRC_DIR}/hal/stm32l4xx
+    ${SRC_DIR}/bsp/common
+    ${SRC_DIR}/app
+    ${FREERTOS_INCLUDES}
 )
 
-# common flags for compilation and linking
-set(COMMON_FLAGS
-        -mcpu=cortex-m4
-        -mthumb
-        -mfpu=fpv4-sp-d16
-        -mfloat-abi=hard
+# Debug/Release specific flags
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    list(APPEND COMMON_FLAGS -O0 -g3)
+    list(APPEND MCU_DEFINES -DDEBUG)
+else()
+    list(APPEND COMMON_FLAGS -Os -g0)
+    list(APPEND MCU_DEFINES -DNDEBUG)
+endif()
+
+# Common flags for all builds
+list(APPEND COMMON_FLAGS
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wno-unused-parameter
+    -fdata-sections
+    -ffunction-sections
 )
 
-# add subdirectory for application sources
+# Apply flags to both C and CXX
+add_compile_options(${COMMON_FLAGS})
+add_compile_definitions(${MCU_DEFINES})
+
+# Linker flags
+set(LINKER_FLAGS
+    ${COMMON_FLAGS}
+    -T${LINKER_SCRIPT}
+    -Wl,-Map=${CMAKE_BINARY_DIR}/${CMAKE_PROJECT_NAME}.map,--cref
+    -Wl,--gc-sections
+    --specs=nano.specs
+)
+
+string(JOIN " " LINKER_FLAGS_STR ${LINKER_FLAGS})
+set(CMAKE_EXE_LINKER_FLAGS ${LINKER_FLAGS_STR})
+
+# CMake modules already included above
+
+# Collect source files
+set(APP_SOURCES
+    ${SRC_DIR}/app/portable_led_example.cpp
+    ${SRC_DIR}/hal/stm32l4xx/hal_gpio_stm32l4xx.c
+    ${SRC_DIR}/syscalls.c
+)
+
+# Add BSP source (from target configuration)
+list(APPEND APP_SOURCES ${BSP_SOURCES})
+
+# Collect all sources (get FreeRTOS sources from the cmake module)
+file(GLOB FREERTOS_ALL_SOURCES
+    "${FREERTOS_DIR}/tasks.c"
+    "${FREERTOS_DIR}/queue.c"
+    "${FREERTOS_DIR}/list.c"
+    "${FREERTOS_DIR}/timers.c"
+    "${FREERTOS_DIR}/event_groups.c"
+    "${FREERTOS_DIR}/stream_buffer.c"
+    "${FREERTOS_DIR}/croutine.c"
+    "${FREERTOS_DIR}/portable/GCC/ARM_CM4F/port.c"
+    "${FREERTOS_DIR}/portable/MemMang/heap_4.c"
+)
+
+set(ALL_SOURCES
+    ${APP_SOURCES}
+    ${HAL_SOURCES}
+    ${FREERTOS_ALL_SOURCES}
+    ${STARTUP_DIR}/Src/startup_${MCU_DEVICE_LOWER}.s
+    ${STARTUP_DIR}/Src/system_${MCU_FAMILY_LOWER}.c
+)
+
+# Create executable
+add_executable(${CMAKE_PROJECT_NAME} ${ALL_SOURCES})
+
+# Include directories
+target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${HAL_INCLUDES})
+
+# Dependencies
+add_dependencies(${CMAKE_PROJECT_NAME} generate_version_header)
+
+# Generate binary and hex files
+add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:${CMAKE_PROJECT_NAME}> ${CMAKE_BINARY_DIR}/${CMAKE_PROJECT_NAME}.bin
+    COMMAND ${CMAKE_OBJCOPY} -O ihex $<TARGET_FILE:${CMAKE_PROJECT_NAME}> ${CMAKE_BINARY_DIR}/${CMAKE_PROJECT_NAME}.hex
+    COMMENT "Generating binary and hex files"
+)
+
+# Print memory usage
+add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_SIZE} $<TARGET_FILE:${CMAKE_PROJECT_NAME}>
+    COMMENT "Memory usage:"
+)
+
+# Build summary
+message(STATUS "Build configuration summary:")
+message(STATUS "  Target Board: ${TARGET_BOARD}")
+message(STATUS "  MCU Family: ${MCU_FAMILY}")
+message(STATUS "  MCU Device: ${MCU_DEVICE}")
+message(STATUS "  Flash Size: ${FLASH_SIZE}")
+message(STATUS "  RAM Size: ${RAM_SIZE}")
+message(STATUS "  Build Type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "  HAL Modules: ${HAL_MODULES}")
+
+# Add subdirectories
 add_subdirectory(src)
 
-# add subdirectory for tests (only when not cross-compiling)
+# Testing support (only if not cross-compiling)
 if(NOT CMAKE_CROSSCOMPILING)
-    add_subdirectory(tests)
-endif()
-
-# add source libraries (HAL e CMSIS)
-include(cmake/hal_sources.cmake)
-include(cmake/cmsis_headers.cmake)
-include(cmake/freertos_sources.cmake)
-
-# important files for startup and system initialization
-set(STARTUP_FILE
-        ${STARTUP_DIR}/Src/startup_stm32l432kcux.s
-)
-set(SYSTEM_FILE
-        ${STARTUP_DIR}/Src/system_stm32l4xx.c
-)
-set(SYSCALL_FILES
-        ${STARTUP_DIR}/Src/syscalls.c
-        ${STARTUP_DIR}/Src/sysmem.c
-)
-
-# main executable target
-add_executable(${PROJECT_NAME}
-        $<TARGET_OBJECTS:app_sources>
-        $<TARGET_OBJECTS:hal_sources>
-        $<TARGET_OBJECTS:freertos_sources>
-        ${SYSTEM_FILE}
-        ${STARTUP_FILE}
-        ${SYSCALL_FILES}
-)
-
-
-add_dependencies(${PROJECT_NAME} generate_version_header)
-
-# compilation definitions
-target_compile_definitions(${PROJECT_NAME} PRIVATE
-        STM32L432xx
-        USE_HAL_DRIVER
-)
-
-# compilation options
-target_compile_options(${PROJECT_NAME} PRIVATE
-        ${COMMON_FLAGS}
-        -Wall
-        -Wextra
-        -ffunction-sections
-        -fdata-sections
-)
-
-# linker options
-target_link_options(${PROJECT_NAME} PRIVATE
-        ${COMMON_FLAGS}
-        -T${LINKER_SCRIPT}
-        -Wl,--gc-sections
-        -Wl,-Map=${CMAKE_BINARY_DIR}/firmware.map
-)
-
-# compilation includes
-target_include_directories(${PROJECT_NAME} PRIVATE
-        ${SRC_DIR}
-        ${HAL_DIR}/Inc
-        ${CMSIS_DIR}/Include
-        ${CMSIS_DIR}/Device/ST/STM32L4xx/Include
-        ${STARTUP_DIR}/Inc
-        ${CMAKE_BINARY_DIR}
-)
-
-# links CMSIS headers
-target_link_libraries(${PROJECT_NAME} PRIVATE cmsis_headers)
-
-# adjust linker language to C
-set_target_properties(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE C)
-
-# Pos-build: create bin and hex files
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:${PROJECT_NAME}> firmware.bin
-        COMMAND ${CMAKE_OBJCOPY} -O ihex $<TARGET_FILE:${PROJECT_NAME}> firmware.hex
-)
-
-# Opção para habilitar testes (desabilitado por padrão para compilação de firmware)
-option(ENABLE_TESTING "Enable unit testing" OFF)
-
-if(ENABLE_TESTING)
     enable_testing()
-    message(STATUS "Unit testing enabled")
-    # Note: Os testes estão configurados em tests/CMakeLists.txt como projeto standalone
-    # Para executar testes, use: cd tests && cmake -B build -S . && cd build && make && ./unit_tests
+    add_subdirectory(tests)
 endif()

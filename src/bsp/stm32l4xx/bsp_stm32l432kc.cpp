@@ -10,6 +10,8 @@
 #include "../../hal/interfaces/hal_gpio.h"
 #include "../../hal/interfaces/hal_rcc.h"
 
+#include <cstring>
+
 extern "C" {
 #include "stm32l4xx_hal.h"
 #include "stm32l4xx_hal_rcc.h"

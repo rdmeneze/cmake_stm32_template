@@ -3,7 +3,10 @@
 
 # Target identification
 set(TARGET_MCU "STM32L432KC")
-set(TARGET_FAMILY "STM32L4xx")
+set(MCU_FAMILY "STM32L4xx")
+set(MCU_DEVICE "STM32L432xx")
+set(MCU_DEVICE_LOWER "stm32l432kcux")
+set(MCU_FAMILY_LOWER "stm32l4xx")
 set(TARGET_SERIES "STM32L4")
 set(TARGET_BOARD "NUCLEO-L432KC")
 
@@ -28,8 +31,14 @@ set(RAM_SIZE "64K")
 set(FLASH_ORIGIN "0x08000000")
 set(RAM_ORIGIN "0x20000000")
 
+# Memory layout
+set(FLASH_SIZE "256K")
+set(RAM_SIZE "64K")
+
 # Linker script
 set(LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/linker/STM32L432KCUX_FLASH.ld")
+
+# Compiler flags for Cortex-M4
 
 # Startup file
 set(STARTUP_FILE "${CMAKE_SOURCE_DIR}/startup/Src/startup_stm32l432kcux.s")
