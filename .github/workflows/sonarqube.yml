@@ -14,14 +14,19 @@ jobs:
   sonarqube-analysis:
     name: SonarQube Code Analysis
     runs-on: self-hosted  # Seu runner self-hosted
+    
+    defaults:
+      run:
+        working-directory: /tmp/sonar-${{ github.run_id }}
 
     steps:
-    - name: Clean workspace
+    - name: Clean workspace manually
       run: |
-        # Limpar workspace e corrigir permissões
-        sudo rm -rf ${{ github.workspace }}/* || true
-        sudo rm -rf ${{ github.workspace }}/.git || true
-        sudo chown -R $USER:$USER ${{ github.workspace }} || true
+        # Tentar limpar sem sudo primeiro
+        rm -rf ./* 2>/dev/null || true
+        rm -rf ./.git 2>/dev/null || true
+        # Se falhar, usar path específico
+        find . -maxdepth 1 -not -name '.' -not -name '..' -exec rm -rf {} + 2>/dev/null || true
 
     - name: Checkout code
       uses: actions/checkout@v4
