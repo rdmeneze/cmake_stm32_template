@@ -13,7 +13,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         # Shallow clones should be disabled for better analysis
         fetch-depth: 0
@@ -98,7 +98,7 @@ jobs:
         fi
 
     - name: Upload Analysis Results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: sonarqube-reports
@@ -109,7 +109,7 @@ jobs:
 
     - name: Comment PR with Results
       if: github.event_name == 'pull_request'
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       with:
         script: |
           const fs = require('fs');
