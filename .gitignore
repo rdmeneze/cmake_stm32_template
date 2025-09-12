@@ -6,6 +6,7 @@
 # You can customize this file based on your project's specific build setup.
 # Common build directories
 build/
+build-*/
 Build/
 cmake-build-*/
 CMakeFiles/

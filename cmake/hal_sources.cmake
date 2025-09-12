@@ -5,6 +5,8 @@ target_include_directories(hal_sources PUBLIC
   ${CMAKE_SOURCE_DIR}/third_party/STM32CubeL4/Drivers/STM32L4xx_HAL_Driver/Inc
   ${STARTUP_DIR}/Inc
   ${CMAKE_SOURCE_DIR}/third_party/STM32CubeL4/Drivers/CMSIS/Device/ST/STM32L4xx/Include
+  ${CMAKE_SOURCE_DIR}/third_party/STM32CubeL4/Drivers/CMSIS/Include
+  ${CMAKE_SOURCE_DIR}/third_party/STM32CubeL4/Drivers/CMSIS/Core/Include
 )
 
 target_link_libraries(hal_sources PRIVATE cmsis_headers)
