@@ -14,26 +14,14 @@ jobs:
   sonarqube-analysis:
     name: SonarQube Code Analysis
     runs-on: self-hosted  # Seu runner self-hosted
-    
-    defaults:
-      run:
-        working-directory: /tmp/sonar-${{ github.run_id }}
 
     steps:
-    - name: Clean workspace manually
-      run: |
-        # Tentar limpar sem sudo primeiro
-        rm -rf ./* 2>/dev/null || true
-        rm -rf ./.git 2>/dev/null || true
-        # Se falhar, usar path específico
-        find . -maxdepth 1 -not -name '.' -not -name '..' -exec rm -rf {} + 2>/dev/null || true
-
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         # Shallow clones should be disabled for better analysis
         fetch-depth: 0
-        clean: true
+        # Let GitHub Actions handle cleanup automatically
 
     - name: Setup SonarQube Tools
       run: |
