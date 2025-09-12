@@ -14,44 +14,71 @@ jobs:
   sonarqube-analysis:
     name: SonarQube Code Analysis
     runs-on: self-hosted  # Seu runner self-hosted
+    container:
+      image: ubuntu:22.04
+      options: --user root
 
     steps:
-    - name: Fix permissions and checkout
+    - name: Install Dependencies in Container
       run: |
-        # Usar um workspace completamente novo para cada execução
-        WORKSPACE_DIR="/tmp/sonar-workspace-${{ github.run_id }}"
-        mkdir -p "$WORKSPACE_DIR"
-        cd "$WORKSPACE_DIR"
+        # Update and install basic tools
+        apt-get update -q
+        apt-get install -y --no-install-recommends \
+          git \
+          curl \
+          wget \
+          unzip \
+          build-essential \
+          cmake \
+          python3 \
+          python3-pip \
+          cppcheck \
+          lcov \
+          ca-certificates
         
-        # Clonar repositório em local limpo (sem depth para análise completa)
-        git clone --branch=${{ github.head_ref || github.ref_name }} https://github.com/${{ github.repository }}.git .
+        # Install ARM toolchain
+        echo "Installing ARM GCC toolchain..."
+        cd /tmp
+        wget -q https://developer.arm.com/-/media/Files/downloads/gnu/13.2.rel1/binrel/arm-gnu-toolchain-13.2.rel1-x86_64-arm-none-eabi.tar.xz
+        tar -xf arm-gnu-toolchain-13.2.rel1-x86_64-arm-none-eabi.tar.xz
+        mv arm-gnu-toolchain-13.2.rel1-x86_64-arm-none-eabi /opt/arm-toolchain
+        echo "/opt/arm-toolchain/bin" >> $GITHUB_PATH
         
-        # Verificar se clonagem funcionou
-        echo "Repository cloned successfully to: $WORKSPACE_DIR"
-        echo "Current directory: $(pwd)"
-        ls -la
+        # Install Python tools
+        pip3 install lizard
         
-        # Configurar variável para próximos steps
-        echo "WORKSPACE_DIR=$WORKSPACE_DIR" >> $GITHUB_ENV
+        echo "Container setup completed"
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Setup SonarQube Tools
       run: |
-        cd "$WORKSPACE_DIR"
-        # Use optimized script that only installs missing tools
-        ./scripts/quick_sonar_check.sh
+        # Mount host SonarQube tools or install in container
+        if [ -d "/host/.local/share/sonar-tools" ]; then
+          echo "Using SonarQube tools from host"
+          export PATH="/host/.local/share/sonar-tools/sonar-scanner-4.8.0.2856-linux/bin:$PATH"
+          export PATH="/host/.local/share/sonar-tools/build-wrapper-linux-x86:$PATH"
+        else
+          echo "Installing SonarQube tools in container..."
+          ./scripts/quick_sonar_check.sh
+        fi
 
-    - name: Install ARM Toolchain
+    - name: Verify ARM Toolchain
       run: |
-        # Verificar se toolchain já está disponível
-        if ! command -v arm-none-eabi-gcc &> /dev/null; then
-          echo "ARM toolchain not found, please install it on the runner"
+        # Verificar se toolchain foi instalado corretamente
+        if command -v arm-none-eabi-gcc &> /dev/null; then
+          echo "SUCCESS: ARM toolchain found: $(arm-none-eabi-gcc --version | head -1)"
+        else
+          echo "ERROR: ARM toolchain not available in PATH"
+          echo "PATH: $PATH"
           exit 1
         fi
-        echo "ARM toolchain found: $(arm-none-eabi-gcc --version | head -1)"
 
     - name: Build and Test
       run: |
-        cd "$WORKSPACE_DIR"
         # Build do projeto
         ./build_portable.sh stm32l432kc Debug
 
@@ -63,7 +90,6 @@ jobs:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
       run: |
-        cd "$WORKSPACE_DIR"
         # Validar se os secrets estão configurados
         if [ -z "${SONAR_TOKEN}" ]; then
           echo "ERROR: SONAR_TOKEN secret not configured"
@@ -100,7 +126,6 @@ jobs:
 
     - name: Validate Analysis Results
       run: |
-        cd "$WORKSPACE_DIR"
         # Verificar se a análise foi executada com sucesso
         if [ -f ".scannerwork/report-task.txt" ]; then
           echo "SUCCESS: SonarQube analysis completed successfully"
@@ -117,23 +142,14 @@ jobs:
           exit 1
         fi
 
-    - name: Copy and Upload Analysis Results
-      if: always()
-      run: |
-        cd "$WORKSPACE_DIR"
-        # Copiar artefatos para local acessível
-        mkdir -p /tmp/sonar-artifacts-${{ github.run_id }}
-        cp -r coverage/ /tmp/sonar-artifacts-${{ github.run_id }}/ 2>/dev/null || true
-        cp -r .scannerwork/ /tmp/sonar-artifacts-${{ github.run_id }}/ 2>/dev/null || true
-        echo "Artifacts copied to: /tmp/sonar-artifacts-${{ github.run_id }}"
-        ls -la /tmp/sonar-artifacts-${{ github.run_id }}/
-
     - name: Upload Analysis Results
       uses: actions/upload-artifact@v4
       if: always()
       with:
         name: sonarqube-reports
-        path: /tmp/sonar-artifacts-${{ github.run_id }}/
+        path: |
+          coverage/
+          .scannerwork/
         retention-days: 30
 
     - name: Comment PR with Results
@@ -142,13 +158,12 @@ jobs:
       with:
         script: |
           const fs = require('fs');
-          const workspaceDir = process.env.WORKSPACE_DIR || '.';
 
           // Ler informações do SonarQube
           let comment = '## SonarQube Analysis Results\n\n';
 
-          if (fs.existsSync(`${workspaceDir}/.scannerwork/report-task.txt`)) {
-            const reportTask = fs.readFileSync(`${workspaceDir}/.scannerwork/report-task.txt`, 'utf8');
+          if (fs.existsSync('.scannerwork/report-task.txt')) {
+            const reportTask = fs.readFileSync('.scannerwork/report-task.txt', 'utf8');
             const dashboardUrl = reportTask.match(/dashboardUrl=(.+)/);
 
             if (dashboardUrl) {
@@ -172,12 +187,8 @@ jobs:
             body: comment
           });
 
-    - name: Cleanup workspace
+    - name: Cleanup
       if: always()
       run: |
-        # Limpar workspace temporário
-        if [ -n "$WORKSPACE_DIR" ] && [ -d "$WORKSPACE_DIR" ]; then
-          rm -rf "$WORKSPACE_DIR" 2>/dev/null || true
-        fi
-        # Limpar artefatos temporários
-        rm -rf /tmp/sonar-artifacts-${{ github.run_id }} 2>/dev/null || true
+        # Container cleanup is automatic
+        echo "Container will be automatically cleaned up"
