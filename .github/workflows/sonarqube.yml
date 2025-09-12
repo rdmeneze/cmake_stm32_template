@@ -20,6 +20,7 @@ jobs:
 
     steps:
     - name: Install Dependencies in Container
+      shell: bash
       run: |
         # Update and install basic tools
         apt-get update -q
@@ -66,6 +67,7 @@ jobs:
         fetch-depth: 0
 
     - name: Setup SonarQube Tools
+      shell: bash
       run: |
         # Mount host SonarQube tools or install in container
         if [ -d "/host/.local/share/sonar-tools" ]; then
@@ -78,6 +80,7 @@ jobs:
         fi
 
     - name: Verify ARM Toolchain
+      shell: bash
       run: |
         # Verificar se toolchain foi instalado corretamente
         echo "=== ARM Toolchain Verification ==="
@@ -102,6 +105,7 @@ jobs:
         ls -la /usr/bin/arm-none-eabi-* | head -5
 
     - name: Static Analysis (No Build Required)
+      shell: bash
       run: |
         echo "=== Running Static Analysis Without Build ==="
 
@@ -124,6 +128,7 @@ jobs:
 
     - name: Build and Test (Optional for Coverage)
       continue-on-error: true
+      shell: bash
       run: |
         echo "=== Attempting Build for Coverage Analysis ==="
 
@@ -148,6 +153,7 @@ jobs:
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+      shell: bash
       run: |
         # Validar se os secrets estão configurados
         if [ -z "${SONAR_TOKEN}" ]; then
@@ -178,7 +184,7 @@ jobs:
 
         echo "SonarQube configuration validated"
         echo "Server: ${SONAR_HOST_URL}"
-        echo "Token: ${SONAR_TOKEN:0:10}..." # Mostra só os primeiros caracteres por segurança
+        echo "Token: $(echo "${SONAR_TOKEN}" | cut -c1-10)..." # Mostra só os primeiros caracteres por segurança
 
         # Configure analysis mode
         echo "Running SonarQube analysis with available metrics..."
