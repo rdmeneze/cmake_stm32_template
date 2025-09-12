@@ -37,8 +37,8 @@ jobs:
     - name: Setup SonarQube Tools
       run: |
         cd "$WORKSPACE_DIR"
-        # Fast setup optimized for self-hosted runner
-        ./scripts/setup_sonar_ci.sh
+        # Use optimized script that only installs missing tools
+        ./scripts/quick_sonar_check.sh
 
     - name: Install ARM Toolchain
       run: |
