@@ -49,6 +49,12 @@ jobs:
         arm-none-eabi-gcc --version | head -1
         which arm-none-eabi-gcc
 
+        # Set environment variables for CMake
+        echo "ARM_GCC_TOOLCHAIN_PATH=/usr" >> $GITHUB_ENV
+        echo "CMAKE_C_COMPILER=/usr/bin/arm-none-eabi-gcc" >> $GITHUB_ENV
+        echo "CMAKE_CXX_COMPILER=/usr/bin/arm-none-eabi-g++" >> $GITHUB_ENV
+        echo "CMAKE_ASM_COMPILER=/usr/bin/arm-none-eabi-gcc" >> $GITHUB_ENV
+
         # Install Python tools
         pip3 install lizard
 
@@ -74,16 +80,37 @@ jobs:
     - name: Verify ARM Toolchain
       run: |
         # Verificar se toolchain foi instalado corretamente
+        echo "=== ARM Toolchain Verification ==="
         if command -v arm-none-eabi-gcc &> /dev/null; then
           echo "SUCCESS: ARM toolchain found: $(arm-none-eabi-gcc --version | head -1)"
+          echo "Location: $(which arm-none-eabi-gcc)"
         else
           echo "ERROR: ARM toolchain not available in PATH"
           echo "PATH: $PATH"
           exit 1
         fi
 
+        # Verify environment variables for CMake
+        echo "=== CMake Environment Variables ==="
+        echo "ARM_GCC_TOOLCHAIN_PATH: ${ARM_GCC_TOOLCHAIN_PATH:-not set}"
+        echo "CMAKE_C_COMPILER: ${CMAKE_C_COMPILER:-not set}"
+        echo "CMAKE_CXX_COMPILER: ${CMAKE_CXX_COMPILER:-not set}"
+        echo "CMAKE_ASM_COMPILER: ${CMAKE_ASM_COMPILER:-not set}"
+
+        # Verify compiler files exist
+        echo "=== Compiler Files Check ==="
+        ls -la /usr/bin/arm-none-eabi-* | head -5
+
     - name: Build and Test
       run: |
+        # Set CMake variables for ARM toolchain
+        export ARM_GCC_TOOLCHAIN_PATH=/usr
+        export CMAKE_C_COMPILER=/usr/bin/arm-none-eabi-gcc
+        export CMAKE_CXX_COMPILER=/usr/bin/arm-none-eabi-g++
+        export CMAKE_ASM_COMPILER=/usr/bin/arm-none-eabi-gcc
+
+        echo "Building with ARM toolchain at: $ARM_GCC_TOOLCHAIN_PATH"
+
         # Build do projeto
         ./build_portable.sh stm32l432kc Debug
 
