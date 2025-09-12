@@ -124,10 +124,10 @@ set(HAL_INCLUDES
 # Debug/Release specific flags
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     list(APPEND COMMON_FLAGS -O0 -g3)
-    list(APPEND MCU_DEFINES -DDEBUG)
+    list(APPEND MCU_DEFINES DEBUG)
 else()
     list(APPEND COMMON_FLAGS -Os -g0)
-    list(APPEND MCU_DEFINES -DNDEBUG)
+    list(APPEND MCU_DEFINES NDEBUG)
 endif()
 
 # Common flags for all builds
@@ -142,7 +142,9 @@ list(APPEND COMMON_FLAGS
 
 # Apply flags to both C and CXX
 add_compile_options(${COMMON_FLAGS})
-add_compile_definitions(${MCU_DEFINES})
+foreach(define IN LISTS MCU_DEFINES)
+    add_compile_options(-D${define})
+endforeach()
 
 # Linker flags
 set(LINKER_FLAGS

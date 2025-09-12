@@ -12,9 +12,9 @@ set(TARGET_BOARD "NUCLEO-L432KC")
 
 # MCU specific definitions
 set(MCU_DEFINES 
-    -DSTM32L432xx
-    -DUSE_HAL_DRIVER
-    -DTARGET_STM32L432KC
+    STM32L432xx
+    USE_HAL_DRIVER
+    TARGET_STM32L432KC
 )
 
 # Compiler flags for Cortex-M4
@@ -117,7 +117,6 @@ set(TARGET_INCLUDE_DIRS
 # Target specific compile options
 set(TARGET_COMPILE_OPTIONS
     ${MCU_ARCH_FLAGS}
-    ${MCU_DEFINES}
     -Wall
     -Wextra
     -Wpedantic
