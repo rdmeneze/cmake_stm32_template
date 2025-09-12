@@ -6,17 +6,29 @@ on:
   pull_request:
     branches: [ main, develop ]  # Permite PRs para main e develop
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   sonarqube-analysis:
     name: SonarQube Code Analysis
     runs-on: self-hosted  # Seu runner self-hosted
 
     steps:
+    - name: Clean workspace
+      run: |
+        # Limpar workspace e corrigir permissões
+        sudo rm -rf ${{ github.workspace }}/* || true
+        sudo rm -rf ${{ github.workspace }}/.git || true
+        sudo chown -R $USER:$USER ${{ github.workspace }} || true
+
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         # Shallow clones should be disabled for better analysis
         fetch-depth: 0
+        clean: true
 
     - name: Setup SonarQube Tools
       run: |
