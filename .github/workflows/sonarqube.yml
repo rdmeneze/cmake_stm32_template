@@ -35,7 +35,7 @@ jobs:
           cppcheck \
           lcov \
           ca-certificates
-        
+
         # Install ARM toolchain (using Ubuntu packages - more reliable)
         echo "Installing ARM GCC toolchain via apt..."
         apt-get install -y --no-install-recommends \
@@ -43,15 +43,15 @@ jobs:
           binutils-arm-none-eabi \
           libnewlib-arm-none-eabi \
           gdb-multiarch
-        
+
         # Verify installation
         echo "ARM toolchain installed successfully"
         arm-none-eabi-gcc --version | head -1
         which arm-none-eabi-gcc
-        
+
         # Install Python tools
         pip3 install lizard
-        
+
         echo "Container setup completed"
 
     - name: Checkout code
