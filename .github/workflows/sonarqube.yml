@@ -23,8 +23,8 @@ jobs:
         mkdir -p "$WORKSPACE_DIR"
         cd "$WORKSPACE_DIR"
         
-        # Clonar repositório em local limpo
-        git clone --depth=0 --branch=${{ github.head_ref || github.ref_name }} https://github.com/${{ github.repository }}.git .
+        # Clonar repositório em local limpo (sem depth para análise completa)
+        git clone --branch=${{ github.head_ref || github.ref_name }} https://github.com/${{ github.repository }}.git .
         
         # Verificar se clonagem funcionou
         echo "Repository cloned successfully to: $WORKSPACE_DIR"
