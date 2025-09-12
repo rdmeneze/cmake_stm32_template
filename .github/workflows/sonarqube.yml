@@ -1,0 +1,133 @@
+name: SonarQube Analysis
+
+on:
+  push:
+    branches: [ main, develop, 15-add-support-to-multiple-stm32-processors ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  sonarqube-analysis:
+    name: SonarQube Code Analysis
+    runs-on: self-hosted  # Seu runner self-hosted
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        # Shallow clones should be disabled for better analysis
+        fetch-depth: 0
+
+    - name: Setup SonarQube Tools
+      run: |
+        # Fast setup optimized for self-hosted runner
+        ./scripts/setup_sonar_ci.sh
+
+    - name: Install ARM Toolchain
+      run: |
+        # Verificar se toolchain já está disponível
+        if ! command -v arm-none-eabi-gcc &> /dev/null; then
+          echo "ARM toolchain not found, please install it on the runner"
+          exit 1
+        fi
+        echo "ARM toolchain found: $(arm-none-eabi-gcc --version | head -1)"
+
+    - name: Build and Test
+      run: |
+        # Build do projeto
+        ./build_portable.sh stm32l432kc Debug
+
+        # Run tests
+        ./run_tests.sh
+
+    - name: Run SonarQube Analysis
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+      run: |
+        # Validar se os secrets estão configurados
+        if [ -z "${SONAR_TOKEN}" ]; then
+          echo "❌ ERROR: SONAR_TOKEN secret not configured"
+          echo "Please add SONAR_TOKEN to repository secrets"
+          exit 1
+        fi
+
+        if [ -z "${SONAR_HOST_URL}" ]; then
+          echo "❌ ERROR: SONAR_HOST_URL secret not configured"
+          echo "Please add SONAR_HOST_URL to repository secrets (ex: http://servidor:9000)"
+          exit 1
+        fi
+
+        # Configurar variáveis para o script de análise
+        export SONAR_LOGIN_TOKEN="${SONAR_TOKEN}"
+        export SONAR_SERVER="${SONAR_HOST_URL}"
+
+        # Testar conectividade com o servidor
+        echo "🔍 Testing SonarQube server connectivity..."
+        if curl -s --connect-timeout 10 "${SONAR_HOST_URL}/api/system/status" > /dev/null; then
+          echo "✅ SonarQube server is accessible at: ${SONAR_HOST_URL}"
+        else
+          echo "⚠️  WARNING: Cannot reach SonarQube server at: ${SONAR_HOST_URL}"
+          echo "Please verify the URL includes the correct protocol and port"
+          echo "Examples: http://servidor:9000, http://servidor:9090, https://sonar.empresa.com"
+        fi
+
+        echo "✅ SonarQube configuration validated"
+        echo "Server: ${SONAR_HOST_URL}"
+        echo "Token: ${SONAR_TOKEN:0:10}..." # Mostra só os primeiros caracteres por segurança
+
+        # Executar análise
+        ./scripts/sonar_analysis.sh
+
+    - name: Quality Gate Check
+      if: secrets.SONAR_TOKEN != ''
+      uses: sonarqube-quality-gate-action@master
+      timeout-minutes: 5
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+    - name: Upload Analysis Results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: sonarqube-reports
+        path: |
+          coverage/
+          .scannerwork/
+        retention-days: 30
+
+    - name: Comment PR with Results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+
+          // Ler informações do SonarQube
+          let comment = '## SonarQube Analysis Results\n\n';
+
+          if (fs.existsSync('.scannerwork/report-task.txt')) {
+            const reportTask = fs.readFileSync('.scannerwork/report-task.txt', 'utf8');
+            const dashboardUrl = reportTask.match(/dashboardUrl=(.+)/);
+
+            if (dashboardUrl) {
+              comment += `[View detailed report](${dashboardUrl[1]})\n\n`;
+            }
+          }
+          comment +=`
+          ### Analysis Summary:
+          - Code Quality Check Completed
+          - Static Analysis: Cppcheck
+          - Coverage Report: Generated
+          - Complexity Analysis: Lizard
+
+          Please review the detailed report for any issues found.
+          `;
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
