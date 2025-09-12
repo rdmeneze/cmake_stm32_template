@@ -103,20 +103,56 @@ echo -e "${BLUE}📦 Checking system packages...${NC}"
 
 PACKAGES_TO_INSTALL=()
 
-# Check required packages
-REQUIRED_PACKAGES=("lcov" "cppcheck" "unzip" "wget" "python3-pip")
+# Detect package manager and required packages
+if command -v dnf >/dev/null 2>&1; then
+    # Fedora/RHEL/CentOS
+    PKG_MANAGER="dnf"
+    REQUIRED_PACKAGES=("lcov" "cppcheck" "unzip" "wget" "python3-pip")
+    CHECK_CMD="rpm -q"
+    INSTALL_CMD="sudo dnf install -y"
+    UPDATE_CMD="sudo dnf check-update || true"
+elif command -v yum >/dev/null 2>&1; then
+    # Older RHEL/CentOS
+    PKG_MANAGER="yum"
+    REQUIRED_PACKAGES=("lcov" "cppcheck" "unzip" "wget" "python3-pip")
+    CHECK_CMD="rpm -q"
+    INSTALL_CMD="sudo yum install -y"
+    UPDATE_CMD="sudo yum check-update || true"
+elif command -v apt-get >/dev/null 2>&1; then
+    # Debian/Ubuntu
+    PKG_MANAGER="apt"
+    REQUIRED_PACKAGES=("lcov" "cppcheck" "unzip" "wget" "python3-pip")
+    CHECK_CMD="dpkg -l | grep -q '^ii'"
+    INSTALL_CMD="sudo apt-get install -y"
+    UPDATE_CMD="sudo apt-get update -q"
+else
+    echo -e "${YELLOW}⚠️  Unknown package manager. Skipping system package installation.${NC}"
+    PKG_MANAGER="unknown"
+fi
 
-for package in "${REQUIRED_PACKAGES[@]}"; do
-    if ! dpkg -l | grep -q "^ii  $package " 2>/dev/null; then
-        PACKAGES_TO_INSTALL+=("$package")
-    fi
-done
+# Check required packages
+PACKAGES_TO_INSTALL=()
+
+if [ "$PKG_MANAGER" != "unknown" ]; then
+    for package in "${REQUIRED_PACKAGES[@]}"; do
+        if [ "$PKG_MANAGER" = "apt" ]; then
+            if ! dpkg -l | grep -q "^ii  $package " 2>/dev/null; then
+                PACKAGES_TO_INSTALL+=("$package")
+            fi
+        else
+            # RPM-based (dnf/yum)
+            if ! rpm -q "$package" >/dev/null 2>&1; then
+                PACKAGES_TO_INSTALL+=("$package")
+            fi
+        fi
+    done
+fi
 
 # Install missing packages
 if [ ${#PACKAGES_TO_INSTALL[@]} -gt 0 ]; then
-    echo -e "${BLUE}  Installing packages: ${PACKAGES_TO_INSTALL[*]}${NC}"
-    sudo apt-get update -q
-    sudo apt-get install -y "${PACKAGES_TO_INSTALL[@]}"
+    echo -e "${BLUE}📦 Installing packages with $PKG_MANAGER: ${PACKAGES_TO_INSTALL[*]}${NC}"
+    $UPDATE_CMD
+    $INSTALL_CMD "${PACKAGES_TO_INSTALL[@]}"
 else
     echo -e "${GREEN}✅ All system packages already installed${NC}"
 fi
