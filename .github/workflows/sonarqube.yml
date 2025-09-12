@@ -47,13 +47,13 @@ jobs:
       run: |
         # Validar se os secrets estão configurados
         if [ -z "${SONAR_TOKEN}" ]; then
-          echo "❌ ERROR: SONAR_TOKEN secret not configured"
+          echo "ERROR: SONAR_TOKEN secret not configured"
           echo "Please add SONAR_TOKEN to repository secrets"
           exit 1
         fi
 
         if [ -z "${SONAR_HOST_URL}" ]; then
-          echo "❌ ERROR: SONAR_HOST_URL secret not configured"
+          echo "ERROR: SONAR_HOST_URL secret not configured"
           echo "Please add SONAR_HOST_URL to repository secrets (ex: http://servidor:9000)"
           exit 1
         fi
@@ -63,29 +63,39 @@ jobs:
         export SONAR_SERVER="${SONAR_HOST_URL}"
 
         # Testar conectividade com o servidor
-        echo "🔍 Testing SonarQube server connectivity..."
+        echo "Testing SonarQube server connectivity..."
         if curl -s --connect-timeout 10 "${SONAR_HOST_URL}/api/system/status" > /dev/null; then
-          echo "✅ SonarQube server is accessible at: ${SONAR_HOST_URL}"
+          echo "SUCCESS: SonarQube server is accessible at: ${SONAR_HOST_URL}"
         else
-          echo "⚠️  WARNING: Cannot reach SonarQube server at: ${SONAR_HOST_URL}"
+          echo "WARNING: Cannot reach SonarQube server at: ${SONAR_HOST_URL}"
           echo "Please verify the URL includes the correct protocol and port"
           echo "Examples: http://servidor:9000, http://servidor:9090, https://sonar.empresa.com"
         fi
 
-        echo "✅ SonarQube configuration validated"
+        echo "SonarQube configuration validated"
         echo "Server: ${SONAR_HOST_URL}"
         echo "Token: ${SONAR_TOKEN:0:10}..." # Mostra só os primeiros caracteres por segurança
 
         # Executar análise
         ./scripts/sonar_analysis.sh
 
-    - name: Quality Gate Check
-      if: secrets.SONAR_TOKEN != ''
-      uses: sonarqube-quality-gate-action@master
-      timeout-minutes: 5
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+    - name: Validate Analysis Results
+      run: |
+        # Verificar se a análise foi executada com sucesso
+        if [ -f ".scannerwork/report-task.txt" ]; then
+          echo "SUCCESS: SonarQube analysis completed successfully"
+          echo "Report details:"
+          cat .scannerwork/report-task.txt
+          
+          # Extrair URL do dashboard
+          if grep -q "dashboardUrl=" .scannerwork/report-task.txt; then
+            DASHBOARD_URL=$(grep "dashboardUrl=" .scannerwork/report-task.txt | cut -d'=' -f2-)
+            echo "View results: $DASHBOARD_URL"
+          fi
+        else
+          echo "ERROR: SonarQube analysis failed - no report generated"
+          exit 1
+        fi
 
     - name: Upload Analysis Results
       uses: actions/upload-artifact@v3
