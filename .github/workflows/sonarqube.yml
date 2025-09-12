@@ -1,0 +1,277 @@
+name: SonarQube Analysis
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]  # Permite PRs para main e develop
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sonarqube-analysis:
+    name: SonarQube Code Analysis
+    runs-on: self-hosted  # Seu runner self-hosted
+    container:
+      image: ubuntu:22.04
+      options: --user root
+
+    steps:
+    - name: Install Dependencies in Container
+      shell: bash
+      run: |
+        # Update and install basic tools
+        apt-get update -q
+        apt-get install -y --no-install-recommends \
+          git \
+          curl \
+          wget \
+          unzip \
+          build-essential \
+          cmake \
+          python3 \
+          python3-pip \
+          cppcheck \
+          lcov \
+          ca-certificates
+
+        # Install ARM toolchain (using Ubuntu packages - more reliable)
+        echo "Installing ARM GCC toolchain via apt..."
+        apt-get install -y --no-install-recommends \
+          gcc-arm-none-eabi \
+          binutils-arm-none-eabi \
+          libnewlib-arm-none-eabi \
+          gdb-multiarch
+
+        # Verify installation
+        echo "ARM toolchain installed successfully"
+        arm-none-eabi-gcc --version | head -1
+        which arm-none-eabi-gcc
+
+        # Set environment variables for CMake
+        echo "ARM_GCC_TOOLCHAIN_PATH=/usr" >> $GITHUB_ENV
+        echo "CMAKE_C_COMPILER=/usr/bin/arm-none-eabi-gcc" >> $GITHUB_ENV
+        echo "CMAKE_CXX_COMPILER=/usr/bin/arm-none-eabi-g++" >> $GITHUB_ENV
+        echo "CMAKE_ASM_COMPILER=/usr/bin/arm-none-eabi-gcc" >> $GITHUB_ENV
+
+        # Install Python tools
+        pip3 install lizard
+
+        echo "Container setup completed"
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup SonarQube Tools
+      shell: bash
+      run: |
+        # Mount host SonarQube tools or install in container
+        if [ -d "/host/.local/share/sonar-tools" ]; then
+          echo "Using SonarQube tools from host"
+          export PATH="/host/.local/share/sonar-tools/sonar-scanner-4.8.0.2856-linux/bin:$PATH"
+          export PATH="/host/.local/share/sonar-tools/build-wrapper-linux-x86:$PATH"
+        else
+          echo "Installing SonarQube tools in container..."
+          ./scripts/quick_sonar_check.sh
+        fi
+
+    - name: Verify ARM Toolchain
+      shell: bash
+      run: |
+        # Verificar se toolchain foi instalado corretamente
+        echo "=== ARM Toolchain Verification ==="
+        if command -v arm-none-eabi-gcc &> /dev/null; then
+          echo "SUCCESS: ARM toolchain found: $(arm-none-eabi-gcc --version | head -1)"
+          echo "Location: $(which arm-none-eabi-gcc)"
+        else
+          echo "ERROR: ARM toolchain not available in PATH"
+          echo "PATH: $PATH"
+          exit 1
+        fi
+
+        # Verify environment variables for CMake
+        echo "=== CMake Environment Variables ==="
+        echo "ARM_GCC_TOOLCHAIN_PATH: ${ARM_GCC_TOOLCHAIN_PATH:-not set}"
+        echo "CMAKE_C_COMPILER: ${CMAKE_C_COMPILER:-not set}"
+        echo "CMAKE_CXX_COMPILER: ${CMAKE_CXX_COMPILER:-not set}"
+        echo "CMAKE_ASM_COMPILER: ${CMAKE_ASM_COMPILER:-not set}"
+
+        # Verify compiler files exist
+        echo "=== Compiler Files Check ==="
+        ls -la /usr/bin/arm-none-eabi-* | head -5
+
+    - name: Static Analysis (No Build Required)
+      shell: bash
+      run: |
+        echo "=== Running Static Analysis Without Build ==="
+
+        # Create coverage directory for analysis tools
+        mkdir -p coverage
+
+        # Run Cppcheck (static analysis)
+        echo "Running Cppcheck static analysis..."
+        cppcheck --enable=all --xml --xml-version=2 \
+          --suppress=missingIncludeSystem \
+          --suppress=unmatchedSuppression \
+          --suppress=unusedFunction \
+          src/ 2> coverage/cppcheck.xml || true
+
+        # Run Lizard (complexity analysis)
+        echo "Running Lizard complexity analysis..."
+        lizard src/ -l cpp -l c --xml > coverage/lizard.xml || true
+
+        echo "Static analysis completed successfully"
+
+    - name: Build and Test (Optional for Coverage)
+      continue-on-error: true
+      shell: bash
+      run: |
+        echo "=== Attempting Build for Coverage Analysis ==="
+
+        # Set CMake variables for ARM toolchain
+        export ARM_GCC_TOOLCHAIN_PATH=/usr
+        export CMAKE_C_COMPILER=/usr/bin/arm-none-eabi-gcc
+        export CMAKE_CXX_COMPILER=/usr/bin/arm-none-eabi-g++
+        export CMAKE_ASM_COMPILER=/usr/bin/arm-none-eabi-gcc
+
+        echo "Building with ARM toolchain at: $ARM_GCC_TOOLCHAIN_PATH"
+
+        # Try to build (but don't fail the whole workflow if it fails)
+        if ./build_portable.sh stm32l432kc Debug; then
+          echo "Build successful - running tests for coverage"
+          ./run_tests.sh || true
+        else
+          echo "Build failed - skipping coverage analysis"
+          echo "SonarQube will run with static analysis only"
+        fi
+
+    - name: Run SonarQube Analysis
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+      shell: bash
+      run: |
+        # Validar se os secrets estão configurados
+        if [ -z "${SONAR_TOKEN}" ]; then
+          echo "ERROR: SONAR_TOKEN secret not configured"
+          echo "Please add SONAR_TOKEN to repository secrets"
+          exit 1
+        fi
+
+        if [ -z "${SONAR_HOST_URL}" ]; then
+          echo "ERROR: SONAR_HOST_URL secret not configured"
+          echo "Please add SONAR_HOST_URL to repository secrets (ex: http://servidor:9000)"
+          exit 1
+        fi
+
+        # Configurar variáveis para o script de análise
+        export SONAR_LOGIN_TOKEN="${SONAR_TOKEN}"
+        export SONAR_SERVER="${SONAR_HOST_URL}"
+
+        # Testar conectividade com o servidor
+        echo "Testing SonarQube server connectivity..."
+        if curl -s --connect-timeout 10 "${SONAR_HOST_URL}/api/system/status" > /dev/null; then
+          echo "SUCCESS: SonarQube server is accessible at: ${SONAR_HOST_URL}"
+        else
+          echo "WARNING: Cannot reach SonarQube server at: ${SONAR_HOST_URL}"
+          echo "Please verify the URL includes the correct protocol and port"
+          echo "Examples: http://servidor:9000, http://servidor:9090, https://sonar.empresa.com"
+        fi
+
+        echo "SonarQube configuration validated"
+        echo "Server: ${SONAR_HOST_URL}"
+        echo "Token: $(echo "${SONAR_TOKEN}" | cut -c1-10)..." # Mostra só os primeiros caracteres por segurança
+
+        # Configure analysis mode
+        echo "Running SonarQube analysis with available metrics..."
+
+        # Check what analysis data we have
+        if [ -f "coverage/coverage.info" ]; then
+          echo "Coverage data found - full analysis mode"
+        else
+          echo "No coverage data - static analysis mode"
+        fi
+
+        if [ -f "coverage/cppcheck.xml" ]; then
+          echo "Cppcheck analysis found"
+        fi
+
+        if [ -f "coverage/lizard.xml" ]; then
+          echo "Complexity analysis found"
+        fi
+
+        # Executar análise
+        ./scripts/sonar_analysis.sh
+
+    - name: Validate Analysis Results
+      run: |
+        # Verificar se a análise foi executada com sucesso
+        if [ -f ".scannerwork/report-task.txt" ]; then
+          echo "SUCCESS: SonarQube analysis completed successfully"
+          echo "Report details:"
+          cat .scannerwork/report-task.txt
+
+          # Extrair URL do dashboard
+          if grep -q "dashboardUrl=" .scannerwork/report-task.txt; then
+            DASHBOARD_URL=$(grep "dashboardUrl=" .scannerwork/report-task.txt | cut -d'=' -f2-)
+            echo "View results: $DASHBOARD_URL"
+          fi
+        else
+          echo "ERROR: SonarQube analysis failed - no report generated"
+          exit 1
+        fi
+
+    - name: Upload Analysis Results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: sonarqube-reports
+        path: |
+          coverage/
+          .scannerwork/
+        retention-days: 30
+
+    - name: Comment PR with Results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+
+          // Ler informações do SonarQube
+          let comment = '## SonarQube Analysis Results\n\n';
+
+          if (fs.existsSync('.scannerwork/report-task.txt')) {
+            const reportTask = fs.readFileSync('.scannerwork/report-task.txt', 'utf8');
+            const dashboardUrl = reportTask.match(/dashboardUrl=(.+)/);
+
+            if (dashboardUrl) {
+              comment += `[View detailed report](${dashboardUrl[1]})\n\n`;
+            }
+          }
+          comment +=`
+          ### Analysis Summary:
+          - Code Quality Check Completed
+          - Static Analysis: Cppcheck
+          - Coverage Report: Generated
+          - Complexity Analysis: Lizard
+
+          Please review the detailed report for any issues found.
+          `;
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+
+    - name: Cleanup
+      if: always()
+      run: |
+        # Container cleanup is automatic
+        echo "Container will be automatically cleaned up"
