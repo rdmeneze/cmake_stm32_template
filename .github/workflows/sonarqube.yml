@@ -16,15 +16,27 @@ jobs:
     runs-on: self-hosted  # Seu runner self-hosted
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        # Shallow clones should be disabled for better analysis
-        fetch-depth: 0
-        # Let GitHub Actions handle cleanup automatically
+    - name: Fix permissions and checkout
+      run: |
+        # Usar um workspace completamente novo para cada execução
+        WORKSPACE_DIR="/tmp/sonar-workspace-${{ github.run_id }}"
+        mkdir -p "$WORKSPACE_DIR"
+        cd "$WORKSPACE_DIR"
+        
+        # Clonar repositório em local limpo
+        git clone --depth=0 --branch=${{ github.head_ref || github.ref_name }} https://github.com/${{ github.repository }}.git .
+        
+        # Verificar se clonagem funcionou
+        echo "Repository cloned successfully to: $WORKSPACE_DIR"
+        echo "Current directory: $(pwd)"
+        ls -la
+        
+        # Configurar variável para próximos steps
+        echo "WORKSPACE_DIR=$WORKSPACE_DIR" >> $GITHUB_ENV
 
     - name: Setup SonarQube Tools
       run: |
+        cd "$WORKSPACE_DIR"
         # Fast setup optimized for self-hosted runner
         ./scripts/setup_sonar_ci.sh
 
@@ -39,6 +51,7 @@ jobs:
 
     - name: Build and Test
       run: |
+        cd "$WORKSPACE_DIR"
         # Build do projeto
         ./build_portable.sh stm32l432kc Debug
 
@@ -50,6 +63,7 @@ jobs:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
       run: |
+        cd "$WORKSPACE_DIR"
         # Validar se os secrets estão configurados
         if [ -z "${SONAR_TOKEN}" ]; then
           echo "ERROR: SONAR_TOKEN secret not configured"
@@ -86,6 +100,7 @@ jobs:
 
     - name: Validate Analysis Results
       run: |
+        cd "$WORKSPACE_DIR"
         # Verificar se a análise foi executada com sucesso
         if [ -f ".scannerwork/report-task.txt" ]; then
           echo "SUCCESS: SonarQube analysis completed successfully"
@@ -102,14 +117,23 @@ jobs:
           exit 1
         fi
 
+    - name: Copy and Upload Analysis Results
+      if: always()
+      run: |
+        cd "$WORKSPACE_DIR"
+        # Copiar artefatos para local acessível
+        mkdir -p /tmp/sonar-artifacts-${{ github.run_id }}
+        cp -r coverage/ /tmp/sonar-artifacts-${{ github.run_id }}/ 2>/dev/null || true
+        cp -r .scannerwork/ /tmp/sonar-artifacts-${{ github.run_id }}/ 2>/dev/null || true
+        echo "Artifacts copied to: /tmp/sonar-artifacts-${{ github.run_id }}"
+        ls -la /tmp/sonar-artifacts-${{ github.run_id }}/
+
     - name: Upload Analysis Results
       uses: actions/upload-artifact@v4
       if: always()
       with:
         name: sonarqube-reports
-        path: |
-          coverage/
-          .scannerwork/
+        path: /tmp/sonar-artifacts-${{ github.run_id }}/
         retention-days: 30
 
     - name: Comment PR with Results
@@ -118,12 +142,13 @@ jobs:
       with:
         script: |
           const fs = require('fs');
+          const workspaceDir = process.env.WORKSPACE_DIR || '.';
 
           // Ler informações do SonarQube
           let comment = '## SonarQube Analysis Results\n\n';
 
-          if (fs.existsSync('.scannerwork/report-task.txt')) {
-            const reportTask = fs.readFileSync('.scannerwork/report-task.txt', 'utf8');
+          if (fs.existsSync(`${workspaceDir}/.scannerwork/report-task.txt`)) {
+            const reportTask = fs.readFileSync(`${workspaceDir}/.scannerwork/report-task.txt`, 'utf8');
             const dashboardUrl = reportTask.match(/dashboardUrl=(.+)/);
 
             if (dashboardUrl) {
@@ -146,3 +171,13 @@ jobs:
             repo: context.repo.repo,
             body: comment
           });
+
+    - name: Cleanup workspace
+      if: always()
+      run: |
+        # Limpar workspace temporário
+        if [ -n "$WORKSPACE_DIR" ] && [ -d "$WORKSPACE_DIR" ]; then
+          rm -rf "$WORKSPACE_DIR" 2>/dev/null || true
+        fi
+        # Limpar artefatos temporários
+        rm -rf /tmp/sonar-artifacts-${{ github.run_id }} 2>/dev/null || true
