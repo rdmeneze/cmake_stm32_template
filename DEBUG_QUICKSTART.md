@@ -1,43 +1,43 @@
-# 🐛 Debug do STM32L432KC - Guia Prático
+# STM32L432KC debug - practical guide
 
-## ✅ Status da Configuração
+## Configuration status
 
-- ✅ **Firmware compilado** com símbolos de debug
-- ✅ **OpenOCD instalado** e funcionando 
-- ✅ **Scripts automáticos** criados
-- ✅ **VS Code configurado** para debug
-- ✅ **GDB ARM toolchain** disponível
+- **Compilated firmware** with debug symbols
+- **OpenOCD installed** and working
+- **Created Automatic scripts**
+- **Configurated VS Code** for debug
+- **GDB ARM toolchain** available
 
-## 🚀 3 Formas de Fazer Debug
+## 3 ways to debugging
 
-### 1. **Debug no VS Code (Recomendado)**
+### 1. **VS Code debugging (Recommended)**
 
-**Pré-requisitos:**
+**Pre-requirements:**
 ```bash
-# Instalar extensão Cortex-Debug no VS Code
-# Extensões recomendadas estão em .vscode/extensions.json
+# Install Cortex-Debug extension on VS Code
+# Recommended extensions are in .vscode/extensions.json
 ```
 
-**Como usar:**
-1. Conectar STM32L432KC via USB
-2. Abrir VS Code na pasta do projeto
-3. Ir para "Run and Debug" (Ctrl+Shift+D)
-4. Selecionar configuração de debug
-5. Pressionar F5
+**How to use:**
+1. Connect STM32L432KC via USB
+2. Open project on VS Code
+3. "Run and Debug" (Ctrl+Shift+D)
+4. Select debug configuration
+5. Press F5
 
 ### 2. **Flash + Debug via Scripts**
 
-**Flash do firmware:**
+**Firmware flash:**
 ```bash
 ./flash_firmware.sh
 ```
 
-**Debug manual:**
+**Manual debug:**
 ```bash
 ./debug_firmware.sh
 ```
 
-### 3. **Debug Manual Completo**
+### 3. **Complete manual debug**
 
 **Terminal 1 (OpenOCD Server):**
 ```bash
@@ -56,39 +56,39 @@ openocd -f interface/stlink.cfg -f target/stm32l4x.cfg
 (gdb) continue
 ```
 
-## 🔧 Comandos Úteis no GDB
+## Useful GDB commands
 
-### Controle de Execução:
+### Execution control:
 ```gdb
-break main              # Breakpoint na main
-break led_task          # Breakpoint na task do LED
-continue               # Continuar execução  
-step                   # Step into (entra em funções)
-next                   # Step over (pula funções)
-finish                 # Sair da função atual
+break main              # Breakpoint on main
+break led_task          # Breakpoint on LED task
+continue               # continue execution
+step                   # Step into
+next                   # Step over
+finish
 ```
 
-### Inspeção de Variáveis:
+### Variable inspection:
 ```gdb
-print variable_name    # Ver valor de variável
-print *pointer         # Ver valor apontado por ponteiro
-print/x variable       # Ver em hexadecimal
-watch variable         # Parar quando variável mudar
-info locals           # Ver todas variáveis locais
+print variable_name    # see variable value
+print *pointer         # see value pointed by
+print/x variable       # see in hex
+watch variable         # stop when variable changes the value
+info locals           # see all local variables
 ```
 
-### Registradores e Memória:
+### Registers and memory:
 ```gdb
-info registers         # Ver todos registradores
-print $r0              # Ver registrador R0
-print $pc              # Ver Program Counter
-x/16x 0x20000000      # Ver 16 words da RAM
-x/i $pc               # Ver instrução atual
+info registers         # Inspect all registers
+print $r0              # Inspect register R0
+print $pc              # Inspect Program Counter
+x/16x 0x20000000      # Inspect 16 words on RAM
+x/i $pc               # Inspect current instruction
 ```
 
-### Específico para STM32:
+### Specific for  STM32:
 ```gdb
-# GPIO B registradores (LED está no PB3)
+# GPIO B registers (LED is on PB3)
 x/8x 0x48000400       # GPIOB base address
 print *(int*)0x48000414  # GPIOB->ODR (output data)
 
@@ -101,39 +101,39 @@ x/4x 0xE000E010       # SysTick registers
 
 ### FreeRTOS Debug:
 ```gdb
-# Ver task atual
+# Verify current task
 print (char*)pxCurrentTCB->pcTaskName
 
-# Ver todas as tasks
+# Verify all tasks
 info threads
 
-# Trocar de thread/task
+# thread/task switch
 thread 2
 ```
 
-## 📁 Arquivos de Debug Criados
+## Created debug file
 
 ### Scripts:
-- `flash_firmware.sh` - Flash automático via ST-Link
-- `debug_firmware.sh` - Debug GDB automático
+- `flash_firmware.sh` - Flash automatic via ST-Link
+- `debug_firmware.sh` - Debug GDB automatic
 
 ### VS Code:
-- `.vscode/launch.json` - Configurações de debug
-- `.vscode/tasks.json` - Tarefas de build e debug
-- `.vscode/extensions.json` - Extensões recomendadas
-- `.vscode/settings.json` - Configurações do projeto
+- `.vscode/launch.json` - debug configuration
+- `.vscode/tasks.json` - Build and debug tasks
+- `.vscode/extensions.json` - recommended extensions
+- `.vscode/settings.json` - Project confugurations
 
 ## 🎯 Funcionalidades de Debug Disponíveis
 
 ### ✅ Breakpoints
 - Linha por linha
-- Condicionais  
+- Condicionais
 - Em funções específicas
 - Em endereços de memória
 
 ### ✅ Stepping
 - Step Into (F11) - Entra em funções
-- Step Over (F10) - Pula funções  
+- Step Over (F10) - Pula funções
 - Step Out (Shift+F11) - Sai da função
 
 ### ✅ Watch Variables
@@ -221,7 +221,7 @@ openocd -f interface/stlink.cfg -f target/stm32l4x.cfg -c "init; halt; exit"
 ## 🎯 Próximos Passos
 
 1. **Instalar Cortex-Debug** no VS Code
-2. **Conectar STM32L432KC** via USB  
+2. **Conectar STM32L432KC** via USB
 3. **Testar flash** com `./flash_firmware.sh`
 4. **Testar debug** com F5 no VS Code
 
