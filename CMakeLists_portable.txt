@@ -142,8 +142,6 @@ list(APPEND COMMON_FLAGS
 
 # Apply flags to both C and CXX
 add_compile_options(${COMMON_FLAGS})
-
-# Apply MCU definitions with proper -D prefixes
 foreach(define IN LISTS MCU_DEFINES)
     add_compile_options(-D${define})
 endforeach()
