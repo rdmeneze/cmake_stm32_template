@@ -7,20 +7,30 @@
 [![ARM GCC](https://img.shields.io/badge/toolchain-ARM%20GCC%2014.2-red)]()
 
 # TODO
--[x] move third_party/STM32CubeL4 to use https://github.com/STMicroelectronics/STM32CubeL4/blob/master/README.md as submodule
--[x] add freertos
--[x] add googletest
--[x] mock hardware functions
+
+- [x] move third_party/STM32CubeL4 to use https://github.com/STMicroelectronics/STM32CubeL4/blob/master/README.md as submodule
+- [x] add freertos
+- [x] add googletest
+- [x] mock hardware functions
+- [x] add CI/CD
 
 # Usage
 ## 1. Clone the repository
+```bash
     git clone https://github.com/rdmeneze/cmake_stm32_template.git
+```
+
 ## 2. Initialize submodules
+```bash
     git submodule update --init --recursive
+```
+
 ## 3. Build the project
+```bash
     mkdir build && cd build
     cmake .. -GNinja -DCMAKE_TOOLCHAIN_FILE=cmake/arm-gcc-toolchain.cmake
     ninja
+```
 
 ## 4. Quick Start
 ```bash
